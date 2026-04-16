@@ -1,9 +1,10 @@
 using System.Collections;
 using System.Collections.Generic;
+using System.Net;
 using UnityEngine;
 
 [RequireComponent(typeof(LineRenderer))]
-public class ResourceGraph : MonoBehaviour
+public class ResourceGraphs : MonoBehaviour
 {
     [System.Serializable]
     public class GraphPoint
@@ -23,39 +24,71 @@ public class ResourceGraph : MonoBehaviour
     [SerializeField] private LineRenderer lineRenderer;
 
     [Header("Graph Size")]
-    [SerializeField] private float graphWidth = 10f;
-    [SerializeField] private float graphHeight = 5f;
+    [SerializeField] private float graphWidth = 100f;
+    [SerializeField] private float graphHeight = 50f;
 
-    [Header("Time Range")]
-    [SerializeField] private float maxDuration = 900f; // 15ºÐ = 900ÃÊ
+
 
     [Header("Value Range")]
-    [SerializeField] private float maxValue = 100f;
+    [SerializeField] private float maxValue = 0;
 
     [SerializeField]
     private List<GraphPoint> points = new List<GraphPoint>();
+    private List<GraphPoint> recordPoints = new List<GraphPoint>();
+
 
     [SerializeField] Transform origin;
     [SerializeField] Transform maxPoint;
 
     int tempValue = 0;
     Coroutine recordCycleCoroutine;
+    Coroutine rePlayCoroutine;
+
+    [Header("ï¿½ï¿½ï¿½ï¿½ï¿½")]
+    public bool isGraphMappingDebug = true;
     private void Awake()
     {
         if (lineRenderer == null)
             lineRenderer = GetComponent<LineRenderer>();
     }
+    private void OnEnable()
+    {
+        GameManager.Instance.OnGameStart += Graph_OnGameStart;
+        GameManager.Instance.OnGameEnd += Graph_OnGameEnd;
+    }
+    private void OnDisable()
+    {
+        GameManager.Instance.OnGameStart -= Graph_OnGameStart;
+        GameManager.Instance.OnGameEnd -= Graph_OnGameEnd;
+    }
     private void Start()
     {
-       
-        recordCycleCoroutine = StartCoroutine(recordCycle_co());
+        graphWidth = maxPoint.position.x - origin.position.x;
+        graphHeight = maxPoint.position.y - origin.position.y;
+        lineRenderer.positionCount = 2;
+        lineRenderer.SetPosition(0, origin.position);
+        lineRenderer.SetPosition(1, maxPoint.position);
     }
     private void Update()
     {
-        if(Input.GetKeyDown(KeyCode.Space))
+        if (Input.GetKeyDown(KeyCode.Space))
         {
             AddPoint(tempValue++);
         }
+        if (Input.GetKeyDown(KeyCode.R))
+        {
+            rePlayCoroutine = StartCoroutine(recordCycleX15_co());
+        }
+
+        if (isGraphMappingDebug)
+        {
+            graphWidth = maxPoint.position.x - origin.position.x;
+            graphHeight = maxPoint.position.y - origin.position.y;
+            lineRenderer.SetPosition(0, origin.position);
+            lineRenderer.SetPosition(1, maxPoint.position);
+
+        }
+
     }
     public void AddPoint(float value)
     {
@@ -68,41 +101,53 @@ public class ResourceGraph : MonoBehaviour
         float currentTime = timer.GetCurrentTime();
         points.Add(new GraphPoint(currentTime, value));
 
-        RedrawGraph();
+        //RedrawGraph();
     }
 
-    private void RedrawGraph()
+    private void RedrawGraph(List<GraphPoint> currentPoints, int playBackSpeed = 1)
     {
-        if (points.Count == 0)
+        if (currentPoints.Count == 0)
         {
             lineRenderer.positionCount = 0;
             return;
         }
 
-        lineRenderer.positionCount = points.Count;
+        float time = GameTimer.Instance.CurrentTime * playBackSpeed;
 
-        for (int i = 0; i < points.Count; i++)
+        for (int i = 0; i < currentPoints.Count; i++)
         {
+            if (currentPoints[i].time > time)
+            {
+                break;
+            }
+            if (currentPoints[i].value > maxValue)
+            {
+                maxValue = currentPoints[i].value;
+            }
             Vector3 size = maxPoint.position - origin.position;
 
-            float normalizedTime = points[i].time / maxDuration;
-            float normalizedValue = points[i].value / maxValue;
-
+            float normalizedTime = currentPoints[i].time / GameTimer.Instance.gameTime;
+            float normalizedValue = currentPoints[i].value / maxValue;
             Vector3 pos = origin.position + new Vector3(
                 size.x * normalizedTime,
                 size.y * normalizedValue,
                 0f
             );
-            //float x = (points[i].time / maxDuration) * graphWidth;
-            //float y = (points[i].value / maxValue) * graphHeight;
-
+            lineRenderer.positionCount = i + 1;
             lineRenderer.SetPosition(i, pos);
         }
     }
-
-    public void ClearGraph()
+    //ï¿½×·ï¿½ï¿½ï¿½ ï¿½ï¿½ï¿½ï¿½ ï¿½Ê±ï¿½È­
+    public void HardClearGraph()
     {
         points.Clear();
+        lineRenderer.positionCount = 0;
+        maxValue = 100f;
+        tempValue = 0;
+    }
+    //ï¿½×·ï¿½ï¿½ï¿½ ï¿½×·ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½
+    public void SoftClearGraph()
+    {
         lineRenderer.positionCount = 0;
     }
 
@@ -114,10 +159,51 @@ public class ResourceGraph : MonoBehaviour
     {
         while (true)
         {
-            yield return new WaitForSeconds(1f); // 1ÃÊ¸¶´Ù ±â·Ï
+            yield return new WaitForSeconds(1f); // 1ï¿½Ê¸ï¿½ï¿½ï¿½ ï¿½ï¿½ï¿½
             //AddPoint(tempValue);
-            RedrawGraph();
+            RedrawGraph(points);
         }
-        
+
+    }
+    IEnumerator recordCycleX15_co()
+    {
+        SoftClearGraph();
+        GameManager.Instance.gameTimeScale = 1f;
+        timer.isRePlay = true;
+        timer.StartTimer();
+        while (true)
+        {
+            yield return new WaitForSeconds(1 * 0.15f); // 1ï¿½Ê¸ï¿½ï¿½ï¿½ ï¿½ï¿½ï¿½
+            RedrawGraph(recordPoints, 15);
+        }
+    }
+    private void Graph_OnGameStart()
+    {
+        isGraphMappingDebug = false;
+        HardClearGraph();
+        if (recordCycleCoroutine != null)
+        {
+            StopCoroutine(recordCycleCoroutine);
+        }
+        if (rePlayCoroutine != null)
+        {
+            StopCoroutine(rePlayCoroutine);
+        }
+        AddPoint(0);
+        recordCycleCoroutine = StartCoroutine(recordCycle_co());
+    }
+    private void Graph_OnGameEnd()
+    {
+        if (recordCycleCoroutine != null)
+        {
+            StopCoroutine(recordCycleCoroutine);
+        }
+        if (rePlayCoroutine != null)
+        {
+            StopCoroutine(rePlayCoroutine);
+        }
+        recordPoints = new List<GraphPoint>(points);
+        // HardClearGraph();
+        //StartCoroutine(recordCycleX15_co());
     }
 }
