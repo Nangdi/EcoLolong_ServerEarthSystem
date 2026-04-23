@@ -7,8 +7,6 @@ using UnityEngine;
 public class GameSettingData
 {
     public bool useUnityOnTop;
-    public int[] displayIndex = { 0, 1, 2 };
-    public float speed = 10f;
 }
 
 public class GameDynamicData
