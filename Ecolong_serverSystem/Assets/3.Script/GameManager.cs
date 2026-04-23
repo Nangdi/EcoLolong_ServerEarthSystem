@@ -10,7 +10,23 @@ public enum GameState
 }
 public class GameManager : MonoBehaviour
 {
-    public static GameManager Instance { get; private set; }
+    private static GameManager instance;
+
+    // 다른 스크립트가 처음 접근하는 시점에 씬에서 한 번 찾아서 보완하는 lazy singleton getter입니다.
+    public static GameManager Instance
+    {
+        get
+        {
+            if (instance == null)
+                instance = FindObjectOfType<GameManager>();
+
+            return instance;
+        }
+        private set
+        {
+            instance = value;
+        }
+    }
     public event Action OnGameStart; // 게임 시작 이벤트
     public event Action OnGameEnd; // 게임 시작 이벤트
 
@@ -25,6 +41,12 @@ public class GameManager : MonoBehaviour
         }
 
         Instance = this;
+    }
+    private void OnDestroy()
+    {
+        // 현재 싱글톤이 파괴될 때는 정적 참조도 같이 비워서 다음 탐색이 가능하게 합니다.
+        if (Instance == this)
+            Instance = null;
     }
     void Start()
     {
