@@ -1889,16 +1889,22 @@ MonoBehaviour:
   temperatureFormat: "{0:0.#}\xB0C"
   arcticIceFormat: '{0:0}%'
   seaLevelFormat: '{0:0}cm'
-  thermalPowerText: {fileID: 570089588}
-  hydroPowerText: {fileID: 1531676095}
-  solarPowerText: {fileID: 1126623812}
-  windPowerText: {fileID: 1458024723}
-  hydrogenText: {fileID: 1671638293}
   electricEnergyText: {fileID: 908450315}
   carbonText: {fileID: 1937560844}
   powerGenerationText: {fileID: 1606244761}
   cityEcoScoreText: {fileID: 1405145710}
   cityBuildingCountText: {fileID: 2100757859}
+  productionFormat: '{0}'
+  thermalEfficiency: 40
+  hydroEfficiency: 85
+  solarEfficiency: 20
+  windEfficiency: 35
+  hydrogenEfficiency: 60
+  thermalPowerText: {fileID: 570089588}
+  hydroPowerText: {fileID: 1531676095}
+  solarPowerText: {fileID: 1126623812}
+  windPowerText: {fileID: 1458024723}
+  hydrogenText: {fileID: 1671638293}
   sustainabilityLevelText: {fileID: 2125423047}
   developmentLevelText: {fileID: 1742632269}
   ecoLevelText: {fileID: 147517813}
@@ -5228,6 +5234,11 @@ MonoBehaviour:
   m_EditorClassIdentifier: 
   applySpanInBuild: 1
   forceBorderlessWindow: 1
+  resolutionMode: 0
+  manualWidth: 2160
+  manualHeight: 1920
+  manualOriginX: 0
+  manualOriginY: 0
 --- !u!1 &2066277797
 GameObject:
   m_ObjectHideFlags: 0

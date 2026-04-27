@@ -22,16 +22,27 @@ public class TcpDataTextBinder : MonoBehaviour
     [SerializeField] private string seaLevelFormat = "{0:0}cm";
 
     [Header("TCP 데이터별 TMP_Text 연결")]
-    [SerializeField] private TMP_Text thermalPowerText;
-    [SerializeField] private TMP_Text hydroPowerText;
-    [SerializeField] private TMP_Text solarPowerText;
-    [SerializeField] private TMP_Text windPowerText;
-    [SerializeField] private TMP_Text hydrogenText;
+   
     [SerializeField] private TMP_Text electricEnergyText;
     [SerializeField] private TMP_Text carbonText;
     [SerializeField] private TMP_Text powerGenerationText;
     [SerializeField] private TMP_Text cityEcoScoreText;
     [SerializeField] private TMP_Text cityBuildingCountText;
+
+    [Header("발전량(count × 효율) 표시")]
+    [Tooltip("발전량 표시 형식. {0}=값, {1}=효율(%)")]
+    [SerializeField] private string productionFormat = "{0}";
+    [Range(0f, 100f)][SerializeField] private float thermalEfficiency = 40f;
+    [Range(0f, 100f)][SerializeField] private float hydroEfficiency = 85f;
+    [Range(0f, 100f)][SerializeField] private float solarEfficiency = 20f;
+    [Range(0f, 100f)][SerializeField] private float windEfficiency = 35f;
+    [Range(0f, 100f)][SerializeField] private float hydrogenEfficiency = 60f;
+     [SerializeField] private TMP_Text thermalPowerText;
+    [SerializeField] private TMP_Text hydroPowerText;
+    [SerializeField] private TMP_Text solarPowerText;
+    [SerializeField] private TMP_Text windPowerText;
+    [SerializeField] private TMP_Text hydrogenText;
+   
 
     [Header("EarthState 단계/상태 표시")]
     // 친환경도 + 발전도 합으로 계산된 지속가능성 표시용입니다.
@@ -136,17 +147,27 @@ public class TcpDataTextBinder : MonoBehaviour
     private void RefreshTcpTexts()
     {
         EnergyTotals totals = aggregator != null ? aggregator.GetEnergyTotals() : null;
-
-        UpdateTargetText(thermalPowerText, "화력", totals != null ? totals.ThermalPower : 0);
-        UpdateTargetText(hydroPowerText, "수력", totals != null ? totals.HydroPower : 0);
-        UpdateTargetText(solarPowerText, "태양광", totals != null ? totals.SolarPower : 0);
-        UpdateTargetText(windPowerText, "풍력", totals != null ? totals.WindPower : 0);
-        UpdateTargetText(hydrogenText, "수소", totals != null ? totals.Hydrogen : 0);
+        UpdateProductionText(thermalPowerText, totals != null ? totals.ThermalPower : 0, thermalEfficiency);
+        UpdateProductionText(hydroPowerText, totals != null ? totals.HydroPower : 0, hydroEfficiency);
+        UpdateProductionText(solarPowerText, totals != null ? totals.SolarPower : 0, solarEfficiency);
+        UpdateProductionText(windPowerText, totals != null ? totals.WindPower : 0, windEfficiency);
+        UpdateProductionText(hydrogenText, totals != null ? totals.Hydrogen : 0, hydrogenEfficiency);
         UpdateTargetText(electricEnergyText, "전기에너지", totals != null ? totals.ElectricEnergy : 0);
         UpdateTargetText(carbonText, "탄소", totals != null ? totals.Carbon : 0);
         UpdateTargetText(powerGenerationText, "발전", totals != null ? totals.PowerGeneration : 0);
         UpdateTargetText(cityEcoScoreText, "도시친환경도", totals != null ? totals.CityEcoScore : 0);
         UpdateTargetText(cityBuildingCountText, "도시 건물수", totals != null ? totals.CityBuildingCount : 0);
+
+    }
+
+    // count × 효율 결과를 TMP_Text 한 칸에 채워 넣습니다.
+    private void UpdateProductionText(TMP_Text targetText, int count, float efficiency)
+    {
+        if (targetText == null)
+            return;
+
+        float production = count * efficiency;
+        targetText.text = string.Format(productionFormat, production);
     }
 
     // EarthStateSnapshot의 필드들을 각 TMP_Text에 반영합니다.
@@ -167,7 +188,7 @@ public class TcpDataTextBinder : MonoBehaviour
         SetText(carbonPpmText, string.Format(carbonPpmFormat, snapshot.CarbonPpm));
         SetText(temperatureText, string.Format(temperatureFormat, snapshot.TemperatureDeltaC));
         SetText(arcticIceText, string.Format(arcticIceFormat, snapshot.ArcticIcePercent));
-        SetText(seaLevelText, string.Format(seaLevelFormat, snapshot.SeaLevelRiseMeters*100)); // 미터 단위를 센티미터로 변환
+        SetText(seaLevelText, string.Format(seaLevelFormat, snapshot.SeaLevelRiseMeters * 100)); // 미터 단위를 센티미터로 변환
     }
 
     // 집계기에서 총합 변경 이벤트를 받으면 각 TMP_Text를 다시 갱신합니다.

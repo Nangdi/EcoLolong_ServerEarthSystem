@@ -60,24 +60,30 @@ public class EnergyTotals
     }
 
     // 표준 키 이름에 맞는 누적값을 증가시킵니다.
+    // 5종 발전(화력/수력/태양광/풍력/수소)은 들어온 count만큼 ElectricEnergy(전기 카운트)도 함께 누적합니다.
     public bool AddValue(string canonicalKey, int amount)
     {
         switch (canonicalKey)
         {
             case "THERMAL_POWER":
                 ThermalPower += amount;
+                ElectricEnergy += amount;
                 return true;
             case "HYDRO_POWER":
                 HydroPower += amount;
+                ElectricEnergy += amount;
                 return true;
             case "SOLAR_POWER":
                 SolarPower += amount;
+                ElectricEnergy += amount;
                 return true;
             case "WIND_POWER":
                 WindPower += amount;
+                ElectricEnergy += amount;
                 return true;
             case "HYDROGEN":
                 Hydrogen += amount;
+                ElectricEnergy += amount;
                 return true;
             case "ELECTRIC_ENERGY":
                 ElectricEnergy += amount;
