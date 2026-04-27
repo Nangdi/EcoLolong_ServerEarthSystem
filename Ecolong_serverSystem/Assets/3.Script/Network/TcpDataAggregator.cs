@@ -65,12 +65,17 @@ public class TcpDataAggregator : MonoBehaviour
 
     private struct DataPacket
     {
+        // 원본 입력에서 받은 데이터 이름입니다. 예를 들어 "화력", "thermal", "THERMAL_POWER" 등 다양한 형태가 될 수 있습니다.
         public string RawName;
+        // 표준 키로 통일된 이름. 예를 들어 "THERMAL_POWER" 같은 형태입니다.
         public string CanonicalName;
-        public string DisplayName;
+        // 수신된 데이터의 개수. A:2, A=2, A,2, A 2 형식에서 2에 해당하는 값입니다. A 형식은 개수 1로 간주합니다.
         public int Count;
+        // 이 데이터를 보낸 클라이언트의 ID입니다. 로컬 테스트로 AddData()를 통해 추가된 데이터는 -1로 표시됩니다.
         public int ClientId;
+        // 이 데이터를 보낸 클라이언트의 원격 주소입니다. 로컬 테스트로 AddData()를 통해 추가된 데이터는 "LOCAL_TEST"로 표시됩니다.
         public string RemoteEndPoint;
+        // 원본 입력 줄 전체입니다. 한 줄에 여러 데이터가 들어올 수 있기 때문에 구분자(예: 세미콜론)로 나누기 전의 원본 데이터를 보관합니다.
         public string RawLine;
     }
 
@@ -235,7 +240,6 @@ public class TcpDataAggregator : MonoBehaviour
         {
             RawName = dataName,
             CanonicalName = NormalizeDataName(dataName),
-            DisplayName = GetDisplayName(NormalizeDataName(dataName)),
             Count = count,
             ClientId = -1,
             RemoteEndPoint = "LOCAL_TEST",
@@ -450,6 +454,11 @@ public class TcpDataAggregator : MonoBehaviour
     // 한 줄에 여러 항목이 들어올 수 있도록 세미콜론 기준으로 나눠 처리합니다.
     private void EnqueueParsedLine(string line, string remoteEndPoint)
     {
+        if(GameManager.Instance.CurrentGameState != GameState.Playing)
+        {
+            AddRecentMessage($"[경고] 게임이 진행 중이 아닐 때 수신된 데이터 무시 / Remote: {remoteEndPoint} / Data: {line}");
+            return;
+        }
         int clientId = GetClientIdByRemoteEndPoint(remoteEndPoint);
         AddRecentMessage($"[Client {clientId}] {line}");
 
@@ -464,7 +473,6 @@ public class TcpDataAggregator : MonoBehaviour
                 {
                     RawName = name,
                     CanonicalName = canonicalName,
-                    DisplayName = GetDisplayName(canonicalName),
                     Count = count,
                     ClientId = clientId,
                     RemoteEndPoint = remoteEndPoint,
@@ -523,7 +531,6 @@ public class TcpDataAggregator : MonoBehaviour
             RawLine = packet.RawLine,
             RawName = packet.RawName,
             CanonicalName = packet.CanonicalName,
-            DisplayName = packet.DisplayName,
             Count = packet.Count
         });
     }

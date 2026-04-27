@@ -55,7 +55,6 @@ public class EarthStateGraphBinder : MonoBehaviour
             return;
 
         lastRecordedSecond = currentSecond;
-
         if (carbonPpmGraph != null)
             carbonPpmGraph.AddPoint(snapshot.CarbonPpm);
 

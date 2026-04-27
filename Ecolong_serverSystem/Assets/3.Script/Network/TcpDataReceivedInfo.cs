@@ -8,6 +8,5 @@ public class TcpDataReceivedInfo
     public string RawLine;
     public string RawName;
     public string CanonicalName;
-    public string DisplayName;
     public int Count;
 }

@@ -41,6 +41,7 @@ public class ResourceGraphs : MonoBehaviour
     private List<GraphPoint> recordPoints = new List<GraphPoint>();
 
     [SerializeField] private Transform origin;
+    [SerializeField] private Transform floor;
     [SerializeField] private Transform maxPoint;
 
     [Header("디버그")]
@@ -87,7 +88,7 @@ public class ResourceGraphs : MonoBehaviour
         TrySubscribeGameEvents();
 
         if (Input.GetKeyDown(KeyCode.Space))
-            AddPoint(tempValue++);
+            AddPoint(tempValue--);
 
         if (Input.GetKeyDown(KeyCode.R))
             replayCoroutine = StartCoroutine(recordCycleX15_co());
@@ -248,6 +249,8 @@ public class ResourceGraphs : MonoBehaviour
         }
 
         targetMaterial.color = fillColor;
+        // Fill은 UI(BG) 위에 그려져야 하므로 Overlay 큐로 올리고, 항상 그려지도록 ZTest를 Always로 둡니다.
+        targetMaterial.renderQueue = 4000;
         fillMeshRenderer.sharedMaterial = targetMaterial;
         fillMeshRenderer.sortingLayerID = lineRenderer.sortingLayerID;
         fillMeshRenderer.sortingOrder = lineRenderer.sortingOrder - 1;
@@ -274,7 +277,7 @@ public class ResourceGraphs : MonoBehaviour
         for (int i = 0; i < pointCount; i++)
         {
             Vector3 topWorld = renderedPositions[i];
-            Vector3 bottomWorld = new Vector3(topWorld.x, origin.position.y, topWorld.z);
+            Vector3 bottomWorld = new Vector3(topWorld.x, floor.position.y, topWorld.z);
 
             vertices[i * 2] = transform.InverseTransformPoint(topWorld);
             vertices[i * 2 + 1] = transform.InverseTransformPoint(bottomWorld);

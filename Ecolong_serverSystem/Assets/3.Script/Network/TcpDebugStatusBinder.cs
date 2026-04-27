@@ -82,7 +82,8 @@ public class TcpDebugStatusBinder : MonoBehaviour
     // 데이터 한 건을 성공적으로 받았을 때 마지막 수신 항목 표시를 갱신합니다.
     private void OnDataReceived(TcpDataReceivedInfo info)
     {
-        lastReceivedSummary = $"Client {info.ClientId} / {info.DisplayName} +{info.Count}";
+        string displayName = aggregator != null ? aggregator.GetDisplayName(info.CanonicalName) : info.CanonicalName;
+        lastReceivedSummary = $"Client {info.ClientId} / {displayName} +{info.Count}";
         RefreshDebugUI();
     }
 

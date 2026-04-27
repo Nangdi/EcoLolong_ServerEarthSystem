@@ -14,7 +14,7 @@ public class EarthStateManager : MonoBehaviour
 
     // 사진 표를 그대로 옮긴 발전도 단계별 탄소농도 변화량입니다.
     // 인덱스 0~4가 발전도 1~5 단계에 대응합니다.
-    private static readonly float[] DevelopmentCarbonRateTable = { 0.08f, 0.1f, 0.15f, 0.1f, 0.05f };
+    private static readonly float[] DevelopmentCarbonRateTable = { 0.1f, 0.1f, 0.15f, 0.1f, 0.05f };
 
     // [행, 열] = [친환경도, 발전도] 로 읽는 5x5 상태표입니다.
     // 예를 들어 친환경도 5, 발전도 1이면 "자연낙원",
@@ -207,7 +207,6 @@ public class EarthStateManager : MonoBehaviour
             !Mathf.Approximately(currentState.TemperatureDeltaC, temperatureDeltaC) ||
             !Mathf.Approximately(currentState.ArcticIcePercent, arcticIcePercent) ||
             !Mathf.Approximately(currentState.SeaLevelRiseMeters, seaLevelRiseMeters);
-
         // 최신 계산 결과를 현재 상태 스냅샷에 반영합니다.
         currentState.SetValues(
             carbonCount,

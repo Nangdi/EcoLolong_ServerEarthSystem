@@ -1,0 +1,9 @@
+{
+  "permissions": {
+    "allow": [
+      "PowerShell(Get-ChildItem \"$env:USERPROFILE\\\\.claude\" -Directory | Select-Object -ExpandProperty Name; Write-Output \"---\"; Get-ChildItem \"$env:USERPROFILE\\\\.claude\" -File | Select-Object -ExpandProperty Name)",
+      "PowerShell(Get-ChildItem \"$env:LOCALAPPDATA\\\\claude-cli-nodejs\" -Recurse -Depth 2 -ErrorAction SilentlyContinue | Select-Object FullName, Length | Format-Table -AutoSize; Write-Output \"---\"; Get-ChildItem \"$env:LOCALAPPDATA\\\\Programs\" -Directory -ErrorAction SilentlyContinue | Select-Object -ExpandProperty Name)",
+      "mcp__unityMCP__manage_scene"
+    ]
+  }
+}
