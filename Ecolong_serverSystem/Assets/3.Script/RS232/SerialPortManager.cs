@@ -17,7 +17,7 @@ public class SerialPortManager : MonoBehaviour
 
 
     SerialPort serialPort;
-    private CancellationTokenSource cancellationTokenSource; // CancellationTokenSource Ãß°¡
+    private CancellationTokenSource cancellationTokenSource; // CancellationTokenSource ì¶”ê°€
     private StringBuilder serialBuffer = new StringBuilder();
     private Queue<string> dataQueue = new Queue<string>();
     protected virtual void Awake()
@@ -36,24 +36,24 @@ public class SerialPortManager : MonoBehaviour
     
     protected virtual void Start()
     {
-        // Æ÷Æ® ¿­±â
+        // í¬íŠ¸ ì—´ê¸°
         portJson = JsonManager.instance.portJson;
-        Debug.Log($"Æ÷Æ® µ¥ÀÌÅÍ ·ÎµåµÊ: COM={portJson.com}, Baud={portJson.baudLate}");
+        Debug.Log($"í¬íŠ¸ ë°ì´í„° ë¡œë“œë¨: COM={portJson.com}, Baud={portJson.baudLate}");
         serialPort = new SerialPort(portJson.com, portJson.baudLate, Parity.None, 8, StopBits.One);
 
-        Debug.Log("Æ÷Æ®¿¬°á½Ãµµ");
+        Debug.Log("í¬íŠ¸ì—°ê²°ì‹œë„");
         //serialPort.ReadTimeout = 500;
         serialPort.Open();
         if (serialPort.IsOpen)
         {
 
-            Debug.Log("¿¬°á¿Ï·á");
+            Debug.Log("ì—°ê²°ì™„ë£Œ");
             StartSerialPortReader();
         }
     }
 
 
-    // µ¥ÀÌÅÍ ÀĞ±â
+    // ë°ì´í„° ì½ê¸°
     void Update()
     {
 
@@ -67,22 +67,22 @@ public class SerialPortManager : MonoBehaviour
         {
             try
             {
-                // µ¥ÀÌÅÍ¸¦ ¼ö½Å
+                // ë°ì´í„°ë¥¼ ìˆ˜ì‹ 
 
                 string input = await Task.Run(() => ReadSerialData(), token);
                 //string data = GetData(input);
 
                 if (!string.IsNullOrEmpty(input) /*&& input.Length > 0*/)
                 {
-                    Debug.Log("¹ŞÀºµ¥ÀÌÅÍ : " + input);
+                    Debug.Log("ë°›ì€ë°ì´í„° : " + input);
                     ReceivedData(input);
                 }
 
             }
             catch (TimeoutException ex)
             {
-                // µ¥ÀÌÅÍ°¡ ¾øÀ» ¶§´Â ¹«½Ã
-                Debug.LogWarning("µ¥ÀÌÅÍ ¼ö½Å ½Ã°£ ÃÊ°ú: " + ex.Message);
+                // ë°ì´í„°ê°€ ì—†ì„ ë•ŒëŠ” ë¬´ì‹œ
+                Debug.LogWarning("ë°ì´í„° ìˆ˜ì‹  ì‹œê°„ ì´ˆê³¼: " + ex.Message);
             }
         }
     }
@@ -91,7 +91,7 @@ public class SerialPortManager : MonoBehaviour
         try
         {
 
-            string input = serialPort.ReadExisting(); // µ¥ÀÌÅÍ ÀĞ±â
+            string input = serialPort.ReadExisting(); // ë°ì´í„° ì½ê¸°
             if (!string.IsNullOrEmpty(input))
             {
                 serialBuffer.Append(input); // (1)
@@ -99,17 +99,17 @@ public class SerialPortManager : MonoBehaviour
                 string processed = TryGetCompleteMessage(serialBuffer.ToString()); // (2)
                 if (processed != null) // (3)
                 {
-                    Debug.Log("¿ÏÀüÇÑ µ¥ÀÌÅÍ ¼ö½Å: " + processed); // (4)
+                    Debug.Log("ì™„ì „í•œ ë°ì´í„° ìˆ˜ì‹ : " + processed); // (4)
                     serialBuffer.Clear(); // (5)
                 }
                 return processed;
             }
             return "";
-            //return serialPort.ReadLine(); // µ¥ÀÌÅÍ ÀĞ±â
+            //return serialPort.ReadLine(); // ë°ì´í„° ì½ê¸°
         }
         catch (TimeoutException)
         {
-            return null; // ½Ã°£ ÃÊ°ú ½Ã null ¹İÈ¯
+            return null; // ì‹œê°„ ì´ˆê³¼ ì‹œ null ë°˜í™˜
         }
     }
     private string TryGetCompleteMessage(string buffer)
@@ -123,7 +123,7 @@ public class SerialPortManager : MonoBehaviour
             return complete;
         }
 
-        return null; // ¾ÆÁ÷ ³¡³ªÁö ¾ÊÀº ¸Ş½ÃÁö
+        return null; // ì•„ì§ ëë‚˜ì§€ ì•Šì€ ë©”ì‹œì§€
     }
   
 
@@ -133,36 +133,36 @@ public class SerialPortManager : MonoBehaviour
         {
             try
             {
-                serialPort.WriteLine(message); // ¸Ş½ÃÁö ¼Û½Å (ÁÙ ¹Ù²Ş Ãß°¡)
+                serialPort.WriteLine(message); // ë©”ì‹œì§€ ì†¡ì‹  (ì¤„ ë°”ê¿ˆ ì¶”ê°€)
                 Debug.Log("Sent: " + message);
             }
             catch (System.Exception ex)
             {
-                Debug.LogError("¼Û½Å ¿À·ù: " + ex.Message);
+                Debug.LogError("ì†¡ì‹  ì˜¤ë¥˜: " + ex.Message);
             }
         }
         else
         {
-            Debug.LogWarning("Æ÷Æ®°¡ ¿­·Á ÀÖÁö ¾ÊÀ½ - ¼Û½Å ½ÇÆĞ");
+            Debug.LogWarning("í¬íŠ¸ê°€ ì—´ë ¤ ìˆì§€ ì•ŠìŒ - ì†¡ì‹  ì‹¤íŒ¨");
         }
     }
     protected virtual void ReceivedData(string data)
     {
-        //»ó¼ÓÇÏ°í ¹ŞÀºµ¥ÀÌÅÍ·Î ÇÁ·ÎÁ§Æ®¿¡ ¸Â´Â ±â´É ±¸Çö
-        //Debug.Log($"{data} ½ÅÈ£º¸³»±â");
+        //ìƒì†í•˜ê³  ë°›ì€ë°ì´í„°ë¡œ í”„ë¡œì íŠ¸ì— ë§ëŠ” ê¸°ëŠ¥ êµ¬í˜„
+        //Debug.Log($"{data} ì‹ í˜¸ë³´ë‚´ê¸°");
 
     }
 
     void OnApplicationQuit()
     {
-        // Æ÷Æ® ´İ±â
+        // í¬íŠ¸ ë‹«ê¸°
 
-        // Á¾·á ½Ã ¾²·¹µå Á¤¸® ¹× Æ÷Æ® ´İ±â
+        // ì¢…ë£Œ ì‹œ ì“°ë ˆë“œ ì •ë¦¬ ë° í¬íŠ¸ ë‹«ê¸°
 
         if (cancellationTokenSource != null)
         {
-            Debug.Log("Task Á¾·á");
-            cancellationTokenSource.Cancel(); // ÀÛ¾÷ Ãë¼Ò
+            Debug.Log("Task ì¢…ë£Œ");
+            cancellationTokenSource.Cancel(); // ì‘ì—… ì·¨ì†Œ
         }
         if (serialPort != null && serialPort.IsOpen)
         {

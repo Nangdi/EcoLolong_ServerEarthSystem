@@ -5,7 +5,7 @@ public class GameTimer : MonoBehaviour
 {
     private static GameTimer instance;
 
-    // ´Ù¸¥ ½ºÅ©¸³Æ®°¡ Ã³À½ Á¢±ÙÇÏ´Â ½ÃÁ¡¿¡ ¾À¿¡¼­ ÇÑ ¹ø Ã£¾Æ¼­ º¸¿ÏÇÏ´Â lazy singleton getterÀÔ´Ï´Ù.
+    // ë‹¤ë¥¸ ìŠ¤í¬ë¦½íŠ¸ê°€ ì²˜ìŒ ì ‘ê·¼í•˜ëŠ” ì‹œì ì— ì”¬ì—ì„œ í•œ ë²ˆ ì°¾ì•„ì„œ ë³´ì™„í•˜ëŠ” lazy singleton getterì…ë‹ˆë‹¤.
     public static GameTimer Instance
     {
         get
@@ -24,8 +24,8 @@ public class GameTimer : MonoBehaviour
     [SerializeField] private float currentTime;
 
     [Header("Time Range")]
-    public float gameTime = 900f; // 15ºĞ = 900ÃÊ
-    public float rePlayTime = 60f; // 1ºĞ = 60ÃÊ
+    public float gameTime = 900f; // 15ë¶„ = 900ì´ˆ
+    public float rePlayTime = 60f; // 1ë¶„ = 60ì´ˆ
     public float targetTime = 0;
     public bool isRePlay = false;
     public float CurrentTime
@@ -49,7 +49,7 @@ public class GameTimer : MonoBehaviour
     }
     private void OnDestroy()
     {
-        // ÇöÀç ½Ì±ÛÅæÀÌ ÆÄ±«µÉ ¶§´Â Á¤Àû ÂüÁ¶µµ °°ÀÌ ºñ¿ö¼­ ´ÙÀ½ Å½»öÀÌ °¡´ÉÇÏ°Ô ÇÕ´Ï´Ù.
+        // í˜„ì¬ ì‹±ê¸€í†¤ì´ íŒŒê´´ë  ë•ŒëŠ” ì •ì  ì°¸ì¡°ë„ ê°™ì´ ë¹„ì›Œì„œ ë‹¤ìŒ íƒìƒ‰ì´ ê°€ëŠ¥í•˜ê²Œ í•©ë‹ˆë‹¤.
         if (Instance == this)
             Instance = null;
     }
@@ -80,7 +80,7 @@ public class GameTimer : MonoBehaviour
                 //Debug.Log("Replay End! . Game End.");
                 //OnReplayEnd?.Invoke();
             }
-            //°ÔÀÓ¸Å´ÏÀú¿¡ °ÔÀÓÁ¾·á ¾Ë¸²
+            //ê²Œì„ë§¤ë‹ˆì €ì— ê²Œì„ì¢…ë£Œ ì•Œë¦¼
             Debug.Log("Time Over!");
             OnTimeOver?.Invoke();
         }

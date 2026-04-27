@@ -12,7 +12,7 @@ public class GameManager : MonoBehaviour
 {
     private static GameManager instance;
 
-    // ´Ù¸¥ ½ºÅ©¸³Æ®°¡ Ã³À½ Á¢±ÙÇÏ´Â ½ÃÁ¡¿¡ ¾À¿¡¼­ ÇÑ ¹ø Ã£¾Æ¼­ º¸¿ÏÇÏ´Â lazy singleton getterÀÔ´Ï´Ù.
+    // ë‹¤ë¥¸ ìŠ¤í¬ë¦½íŠ¸ê°€ ì²˜ìŒ ì ‘ê·¼í•˜ëŠ” ì‹œì ì— ì”¬ì—ì„œ í•œ ë²ˆ ì°¾ì•„ì„œ ë³´ì™„í•˜ëŠ” lazy singleton getterì…ë‹ˆë‹¤.
     public static GameManager Instance
     {
         get
@@ -27,11 +27,11 @@ public class GameManager : MonoBehaviour
             instance = value;
         }
     }
-    public event Action OnGameStart; // °ÔÀÓ ½ÃÀÛ ÀÌº¥Æ®
-    public event Action OnGameEnd; // °ÔÀÓ ½ÃÀÛ ÀÌº¥Æ®
+    public event Action OnGameStart; // ê²Œì„ ì‹œì‘ ì´ë²¤íŠ¸
+    public event Action OnGameEnd; // ê²Œì„ ì‹œì‘ ì´ë²¤íŠ¸
 
-    public float gameTimeScale = 1f; // °ÔÀÓ ½Ã°£ÀÇ Èå¸§À» Á¶ÀıÇÏ´Â º¯¼ö
-    public GameState CurrentGameState { get; private set; } = GameState.Ready; // ÇöÀç °ÔÀÓ »óÅÂ¸¦ ³ªÅ¸³»´Â º¯¼ö
+    public float gameTimeScale = 1f; // ê²Œì„ ì‹œê°„ì˜ íë¦„ì„ ì¡°ì ˆí•˜ëŠ” ë³€ìˆ˜
+    public GameState CurrentGameState { get; private set; } = GameState.Ready; // í˜„ì¬ ê²Œì„ ìƒíƒœë¥¼ ë‚˜íƒ€ë‚´ëŠ” ë³€ìˆ˜
     private void Awake()
     {
         if (Instance != null && Instance != this)
@@ -44,27 +44,27 @@ public class GameManager : MonoBehaviour
     }
     private void OnDestroy()
     {
-        // ÇöÀç ½Ì±ÛÅæÀÌ ÆÄ±«µÉ ¶§´Â Á¤Àû ÂüÁ¶µµ °°ÀÌ ºñ¿ö¼­ ´ÙÀ½ Å½»öÀÌ °¡´ÉÇÏ°Ô ÇÕ´Ï´Ù.
+        // í˜„ì¬ ì‹±ê¸€í†¤ì´ íŒŒê´´ë  ë•ŒëŠ” ì •ì  ì°¸ì¡°ë„ ê°™ì´ ë¹„ì›Œì„œ ë‹¤ìŒ íƒìƒ‰ì´ ê°€ëŠ¥í•˜ê²Œ í•©ë‹ˆë‹¤.
         if (Instance == this)
             Instance = null;
     }
     void Start()
     {
-        Time.timeScale = gameTimeScale; // °ÔÀÓ ½ÃÀÛ ½Ã ½Ã°£ Èå¸§À» ¼³Á¤
+        Time.timeScale = gameTimeScale; // ê²Œì„ ì‹œì‘ ì‹œ ì‹œê°„ íë¦„ì„ ì„¤ì •
         GameTimer.Instance.OnTimeOver += GameManager_OnGameEnd;
     }
-    //½Ã°£Á¾·á½Ã °ÔÀÓ Á¾·á ÀÌº¥Æ® È£Ãâ
+    //ì‹œê°„ì¢…ë£Œì‹œ ê²Œì„ ì¢…ë£Œ ì´ë²¤íŠ¸ í˜¸ì¶œ
     private void GameManager_OnGameStart()
     {
         SetGameState(GameState.Playing);
-        OnGameStart?.Invoke(); // °ÔÀÓ ½ÃÀÛ ÀÌº¥Æ® È£Ãâ
+        OnGameStart?.Invoke(); // ê²Œì„ ì‹œì‘ ì´ë²¤íŠ¸ í˜¸ì¶œ
     }
     private void GameManager_OnGameEnd()
     {
-        OnGameEnd?.Invoke(); // °ÔÀÓ Á¾·á ÀÌº¥Æ® È£Ãâ
+        OnGameEnd?.Invoke(); // ê²Œì„ ì¢…ë£Œ ì´ë²¤íŠ¸ í˜¸ì¶œ
         if (CurrentGameState.Equals(GameState.Ready))
         {
-            //ÃÖÃÊ »óÅÂ·Î ¸®¼Â
+            //ìµœì´ˆ ìƒíƒœë¡œ ë¦¬ì…‹
         }
         //SetGameState(GameState.Ended);
     }
@@ -73,21 +73,21 @@ public class GameManager : MonoBehaviour
     void Update()
     {
         
-        Time.timeScale = gameTimeScale; // °ÔÀÓ ½ÃÀÛ ½Ã ½Ã°£ Èå¸§À» ¼³Á¤
+        Time.timeScale = gameTimeScale; // ê²Œì„ ì‹œì‘ ì‹œ ì‹œê°„ íë¦„ì„ ì„¤ì •
         if(Input.GetKeyDown(KeyCode.S) )
         {
             Debug.Log("Game Started!");
-            GameManager_OnGameStart(); // °ÔÀÓ ½ÃÀÛ ÀÌº¥Æ® È£Ãâ
+            GameManager_OnGameStart(); // ê²Œì„ ì‹œì‘ ì´ë²¤íŠ¸ í˜¸ì¶œ
         }
         //if(Input.GetKeyDown(KeyCode.E) && CurrentGameState.Equals(GameState.Playing))
         //{
         //    Debug.Log("Game Ended!");
-        //    GameManager_OnGameEnd(); // °ÔÀÓ Á¾·á ÀÌº¥Æ® È£Ãâ
+        //    GameManager_OnGameEnd(); // ê²Œì„ ì¢…ë£Œ ì´ë²¤íŠ¸ í˜¸ì¶œ
         //}
     }
     public void SetGameState(GameState newState)
     {
         CurrentGameState = newState;
-        GameTimer.Instance.SettingTimer(); // °ÔÀÓ »óÅÂ º¯°æ ½Ã GameTimer¿¡µµ Àü´Ş
+        GameTimer.Instance.SettingTimer(); // ê²Œì„ ìƒíƒœ ë³€ê²½ ì‹œ GameTimerì—ë„ ì „ë‹¬
     }
 }
