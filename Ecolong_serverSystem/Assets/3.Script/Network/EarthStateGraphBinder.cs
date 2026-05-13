@@ -1,4 +1,5 @@
 using UnityEngine;
+using UnityEngine.Serialization;
 
 public class EarthStateGraphBinder : MonoBehaviour
 {
@@ -8,6 +9,12 @@ public class EarthStateGraphBinder : MonoBehaviour
     [Header("그래프 연결")]
     [SerializeField] private ResourceGraphs carbonPpmGraph;
     [SerializeField] private ResourceGraphs temperatureGraph;
+    [FormerlySerializedAs("CarbornGraph"), FormerlySerializedAs("CarbonGraph")]
+    [SerializeField] private ResourceGraphs carbonGraph;
+    [FormerlySerializedAs("ElectricityGraph")]
+    [SerializeField] private ResourceGraphs electricityGraph;
+    [FormerlySerializedAs("PowerGenerationGraph")]
+    [SerializeField] private ResourceGraphs powerGenerationGraph;
 
     private int lastRecordedSecond = -1;
 
@@ -15,14 +22,14 @@ public class EarthStateGraphBinder : MonoBehaviour
     private void Awake()
     {
         if (earthStateManager == null)
-            earthStateManager = FindObjectOfType<EarthStateManager>();
+            earthStateManager = EarthStateManager.Instance;
     }
 
     // 지구 상태가 바뀔 때마다 탄소농도와 온도를 그래프에 기록하도록 연결합니다.
     private void OnEnable()
     {
         if (earthStateManager == null)
-            earthStateManager = FindObjectOfType<EarthStateManager>();
+            earthStateManager = EarthStateManager.Instance;
 
         if (earthStateManager != null)
             earthStateManager.StateChanged += OnEarthStateChanged;
@@ -60,6 +67,12 @@ public class EarthStateGraphBinder : MonoBehaviour
 
         if (temperatureGraph != null)
             temperatureGraph.AddPoint(snapshot.TemperatureDeltaC);
+        if (carbonGraph != null)
+            carbonGraph.AddPoint(snapshot.CarbonCount);
+        if (electricityGraph != null)
+            electricityGraph.AddPoint(snapshot.ElectricCount);
+        if (powerGenerationGraph != null)
+            powerGenerationGraph.AddPoint(snapshot.PowerGenerationCount);
     }
 
     // 새 게임이 시작되면 그래프 기록 초 카운트를 다시 초기화합니다.

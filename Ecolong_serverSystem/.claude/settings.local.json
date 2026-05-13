@@ -3,7 +3,17 @@
     "allow": [
       "PowerShell(Get-ChildItem \"$env:USERPROFILE\\\\.claude\" -Directory | Select-Object -ExpandProperty Name; Write-Output \"---\"; Get-ChildItem \"$env:USERPROFILE\\\\.claude\" -File | Select-Object -ExpandProperty Name)",
       "PowerShell(Get-ChildItem \"$env:LOCALAPPDATA\\\\claude-cli-nodejs\" -Recurse -Depth 2 -ErrorAction SilentlyContinue | Select-Object FullName, Length | Format-Table -AutoSize; Write-Output \"---\"; Get-ChildItem \"$env:LOCALAPPDATA\\\\Programs\" -Directory -ErrorAction SilentlyContinue | Select-Object -ExpandProperty Name)",
-      "mcp__unityMCP__manage_scene"
+      "mcp__unityMCP__manage_scene",
+      "mcp__UnityMCP__refresh_unity",
+      "mcp__UnityMCP__read_console",
+      "mcp__UnityMCP__manage_scene",
+      "mcp__UnityMCP__find_gameobjects",
+      "mcp__UnityMCP__manage_editor",
+      "mcp__UnityMCP__execute_code",
+      "mcp__UnityMCP__manage_camera",
+      "mcp__UnityMCP__manage_components",
+      "mcp__UnityMCP__manage_gameobject",
+      "mcp__UnityMCP__set_active_instance"
     ]
   }
 }

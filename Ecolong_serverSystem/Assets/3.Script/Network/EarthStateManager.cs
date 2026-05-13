@@ -3,6 +3,20 @@ using UnityEngine;
 
 public class EarthStateManager : MonoBehaviour
 {
+    private static EarthStateManager instance;
+
+    // 다른 스크립트가 처음 접근하는 시점에 씬에서 한 번 찾아서 보완하는 lazy singleton getter입니다.
+    public static EarthStateManager Instance
+    {
+        get
+        {
+            if (instance == null)
+                instance = FindObjectOfType<EarthStateManager>();
+            return instance;
+        }
+        private set { instance = value; }
+    }
+
     private const int MaxLevel = 5;
     private const int MinLevel = 1;
     private const float PreIndustrialCarbonPpm = 280f;
@@ -59,11 +73,25 @@ public class EarthStateManager : MonoBehaviour
 
     private void Awake()
     {
+        if (Instance != null && Instance != this)
+        {
+            Destroy(gameObject);
+            return;
+        }
+
+        Instance = this;
+
         if (aggregator == null)
-            aggregator = FindObjectOfType<TcpDataAggregator>();
+            aggregator = TcpDataAggregator.Instance;
 
         if (GameManager.Instance != null)
             lastObservedGameState = GameManager.Instance.CurrentGameState;
+    }
+
+    private void OnDestroy()
+    {
+        if (Instance == this)
+            Instance = null;
     }
 
     private void OnEnable()
@@ -123,7 +151,7 @@ public class EarthStateManager : MonoBehaviour
         lastObservedGameState = GameState.Playing;
 
         if (aggregator == null)
-            aggregator = FindObjectOfType<TcpDataAggregator>();
+            aggregator = TcpDataAggregator.Instance;
 
         if (resetAggregatorOnGameStart && aggregator != null)
             aggregator.ClearTotals();
@@ -167,12 +195,15 @@ public class EarthStateManager : MonoBehaviour
     {
         // inspector 연결이 비어 있어도 동작하도록 런타임에서 한 번 더 탐색합니다.
         if (aggregator == null)
-            aggregator = FindObjectOfType<TcpDataAggregator>();
+            aggregator = TcpDataAggregator.Instance;
 
         // TCP 집계기의 누적 탄소/발전 값을 읽습니다.
         EnergyTotals totals = aggregator != null ? aggregator.GetEnergyTotals() : null;
-        int carbonCount = totals != null ? totals.Carbon : 0;
-        int powerGenerationCount = totals != null ? totals.PowerGeneration : 0;
+        int carbonCount = totals != null ? totals.totalCarbon : 0;
+        int powerGenerationCount = totals != null ? totals.powerGeneration : 0;
+        int electricCount = totals != null ? totals.electricCount : 0;
+        int currentCarbon = totals != null ? totals.totalCarbon - totals.captureCarbon : 0;
+        int currentPowerGeneration = totals != null ? totals.currentPowerGeneration : 0;
 
         // count -> 단계 변환.
         // 탄소가 많을수록 친환경도는 내려가고,
@@ -193,24 +224,13 @@ public class EarthStateManager : MonoBehaviour
         float arcticIcePercent = CalculateArcticIcePercent(temperatureDeltaC);
         float seaLevelRiseMeters = CalculateSeaLevelRiseMeters(temperatureDeltaC);
 
-        // 같은 값으로 다시 계산된 경우에는 불필요한 이벤트 발행을 막기 위해
-        // 이전 상태와 비교해서 실제 변화가 있었는지 확인합니다.
-        bool hasChanged =
-            currentState.CarbonCount != carbonCount ||
-            currentState.PowerGenerationCount != powerGenerationCount ||
-            currentState.EcoLevel != ecoLevel ||
-            currentState.DevelopmentLevel != developmentLevel ||
-            currentState.EcoLevelOffset != softwareEcoOffset ||
-            !string.Equals(currentState.StateName, stateName, StringComparison.Ordinal) ||
-            !Mathf.Approximately(currentState.CarbonPpm, nextCarbonPpm) ||
-            !Mathf.Approximately(currentState.CarbonPpmChangePerSecond, carbonRatePerSecond) ||
-            !Mathf.Approximately(currentState.TemperatureDeltaC, temperatureDeltaC) ||
-            !Mathf.Approximately(currentState.ArcticIcePercent, arcticIcePercent) ||
-            !Mathf.Approximately(currentState.SeaLevelRiseMeters, seaLevelRiseMeters);
-        // 최신 계산 결과를 현재 상태 스냅샷에 반영합니다.
-        currentState.SetValues(
+        // SetValues가 비교+적용을 모두 수행하고, 실제로 바뀐 경우에만 true를 반환합니다.
+        bool hasChanged = currentState.SetValues(
             carbonCount,
             powerGenerationCount,
+            electricCount,
+            currentCarbon,
+            currentPowerGeneration,
             ecoLevel,
             developmentLevel,
             softwareEcoOffset,
@@ -221,7 +241,6 @@ public class EarthStateManager : MonoBehaviour
             arcticIcePercent,
             seaLevelRiseMeters);
 
-        // 수치나 상태명이 바뀐 경우에만 외부에 알립니다.
         if (hasChanged)
             StateChanged?.Invoke(currentState);
     }

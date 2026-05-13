@@ -87,7 +87,6 @@ MonoBehaviour:
   graphHeight: 50
   useFillArea: 1
   fillMaterial: {fileID: 2100000, guid: 2730bbb7783629b4ea10a5298ce2f97b, type: 2}
-  fillColor: {r: 0.2, g: 0.95, b: 0.35, a: 0.2}
   maxValue: 100
   initialGraphValue: 280
   points: []
@@ -95,6 +94,7 @@ MonoBehaviour:
   floor: {fileID: 6634026103256525007}
   maxPoint: {fileID: 8902127092996841336}
   isGraphMappingDebug: 1
+  isReplayGraph: 0
 --- !u!120 &3493769947547645787
 LineRenderer:
   serializedVersion: 2
@@ -136,11 +136,11 @@ LineRenderer:
   m_LightmapParameters: {fileID: 0}
   m_SortingLayerID: 0
   m_SortingLayer: 0
-  m_SortingOrder: 0
+  m_SortingOrder: 10
   m_Positions: []
   m_Parameters:
     serializedVersion: 3
-    widthMultiplier: 0.01
+    widthMultiplier: 0.05
     widthCurve:
       serializedVersion: 2
       m_Curve:

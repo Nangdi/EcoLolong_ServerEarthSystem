@@ -13,19 +13,34 @@ using UnityEngine;
 
 public class TcpDataAggregator : MonoBehaviour
 {
-    private const int MaxRecentMessages = 10;
+    private static TcpDataAggregator instance;
+
+    // 다른 스크립트가 처음 접근하는 시점에 씬에서 한 번 찾아서 보완하는 lazy singleton getter입니다.
+    public static TcpDataAggregator Instance
+    {
+        get
+        {
+            if (instance == null)
+                instance = FindObjectOfType<TcpDataAggregator>();
+            return instance;
+        }
+        private set { instance = value; }
+    }
+
+    private const int MaxRecentMessages = 200;
     private static readonly EnergyDataDefinition[] SupportedDataDefinitions =
     {
-        new EnergyDataDefinition("THERMAL_POWER", "화력", "화력", "thermal", "thermal_power"),
-        new EnergyDataDefinition("HYDRO_POWER", "수력", "수력", "hydro", "hydro_power"),
-        new EnergyDataDefinition("SOLAR_POWER", "태양광", "태양광", "solar", "solar_power"),
-        new EnergyDataDefinition("WIND_POWER", "풍력", "풍력", "wind", "wind_power"),
+        new EnergyDataDefinition("THERMAL", "화력", "화력", "thermal", "thermal_power"),
+        new EnergyDataDefinition("HYDRO", "수력", "수력", "hydro", "hydro_power"),
+        new EnergyDataDefinition("SOLAR", "태양광", "태양광", "solar", "solar_power"),
+        new EnergyDataDefinition("WIND", "풍력", "풍력", "wind", "wind_power"),
         new EnergyDataDefinition("HYDROGEN", "수소", "수소", "hydrogen"),
-        new EnergyDataDefinition("ELECTRIC_ENERGY", "전기에너지", "전기에너지", "전기애너지", "electric_energy", "electric"),
+        new EnergyDataDefinition("ELECTRIC", "전기", "전기", "전기", "electric"),
         new EnergyDataDefinition("CARBON", "탄소", "탄소", "carbon"),
         new EnergyDataDefinition("POWER_GENERATION", "발전", "발전", "generation", "power_generation"),
-        new EnergyDataDefinition("CITY_ECO_SCORE", "도시친환경도", "도시친환경도", "city_eco_score", "eco_city"),
-        new EnergyDataDefinition("CITY_BUILDING_COUNT", "도시 건물수", "도시건물수", "도시 건물수", "city_building_count", "building_count")
+        new EnergyDataDefinition("ECO", "도시친환경도", "도시친환경도", "city_eco_score", "eco_city"),
+        new EnergyDataDefinition("BUILDING", "건물 추가", "건물추가", "건물 추가", "도시 건물수", "도시건물수", "city_building_count", "building_count", "BULDING", "building_add"),
+        new EnergyDataDefinition("CARBON_CAPTURE", "탄소 포집", "탄소포집", "탄소 포집", "CARBON_CAPTURE", "capture_carbon", "remove_carbon", "carbon_remove")
     };
 
     [Header("TCP Server")]
@@ -46,7 +61,7 @@ public class TcpDataAggregator : MonoBehaviour
     [SerializeField] private bool appendOutgoingLineEnding = true;
     [SerializeField] private TMP_InputField outgoingMessageInputField;
 
-    private readonly ConcurrentQueue<DataPacket> receivedQueue = new ConcurrentQueue<DataPacket>();
+    private readonly ConcurrentQueue<TcpDataReceivedInfo> receivedQueue = new ConcurrentQueue<TcpDataReceivedInfo>();
     private readonly List<TcpClient> connectedClients = new List<TcpClient>();
     private readonly Dictionary<TcpClient, ClientConnectionInfo> clientInfoByClient = new Dictionary<TcpClient, ClientConnectionInfo>();
     private readonly Queue<string> recentMessages = new Queue<string>();
@@ -62,22 +77,6 @@ public class TcpDataAggregator : MonoBehaviour
     public event Action<EnergyTotals> TotalsChanged;
     public event Action<TcpDataReceivedInfo> DataReceived;
     public event Action DebugStateChanged;
-
-    private struct DataPacket
-    {
-        // 원본 입력에서 받은 데이터 이름입니다. 예를 들어 "화력", "thermal", "THERMAL_POWER" 등 다양한 형태가 될 수 있습니다.
-        public string RawName;
-        // 표준 키로 통일된 이름. 예를 들어 "THERMAL_POWER" 같은 형태입니다.
-        public string CanonicalName;
-        // 수신된 데이터의 개수. A:2, A=2, A,2, A 2 형식에서 2에 해당하는 값입니다. A 형식은 개수 1로 간주합니다.
-        public int Count;
-        // 이 데이터를 보낸 클라이언트의 ID입니다. 로컬 테스트로 AddData()를 통해 추가된 데이터는 -1로 표시됩니다.
-        public int ClientId;
-        // 이 데이터를 보낸 클라이언트의 원격 주소입니다. 로컬 테스트로 AddData()를 통해 추가된 데이터는 "LOCAL_TEST"로 표시됩니다.
-        public string RemoteEndPoint;
-        // 원본 입력 줄 전체입니다. 한 줄에 여러 데이터가 들어올 수 있기 때문에 구분자(예: 세미콜론)로 나누기 전의 원본 데이터를 보관합니다.
-        public string RawLine;
-    }
 
     private struct ClientConnectionInfo
     {
@@ -100,6 +99,17 @@ public class TcpDataAggregator : MonoBehaviour
         }
     }
 
+    private void Awake()
+    {
+        if (Instance != null && Instance != this)
+        {
+            Destroy(gameObject);
+            return;
+        }
+
+        Instance = this;
+    }
+
     // 씬 시작 시 설정값에 따라 TCP 서버를 자동으로 시작합니다.
     private void Start()
     {
@@ -114,21 +124,11 @@ public class TcpDataAggregator : MonoBehaviour
     private void Update()
     {
         HandleKeyboardTestInput();
+        
+        //TCP 데이터 처리 구간
+        bool totalsChanged = ProcessReceivedQueue();
 
-        bool totalsChanged = false;
-
-        while (receivedQueue.TryDequeue(out DataPacket packet))
-        {
-            if (!energyTotals.AddValue(packet.CanonicalName, packet.Count))
-            {
-                AddRecentMessage($"[경고] 지원하지 않는 키 / Raw: {packet.RawName} / Canonical: {packet.CanonicalName} / Remote: {packet.RemoteEndPoint}");
-                continue;
-            }
-
-            totalsChanged = true;
-            NotifyDataReceived(packet);
-        }
-
+        //TCP 연결 상태 변경시
         if (connectionStatusChanged)
         {
             connectionStatusChanged = false;
@@ -137,6 +137,27 @@ public class TcpDataAggregator : MonoBehaviour
 
         if (totalsChanged)
             NotifyTotalsChanged();
+    }
+
+    // 수신 큐에 쌓인 패킷을 모두 꺼내서 누적값에 반영하고 변경 여부를 반환합니다.
+    private bool ProcessReceivedQueue()
+    {
+        bool totalsChanged = false;
+
+        while (receivedQueue.TryDequeue(out TcpDataReceivedInfo packet))
+        {
+            if (!energyTotals.AddValue(packet.CanonicalName, packet.Count))
+            {
+                AddRecentMessage($"[경고] 지원하지 않는 키 / Raw: {packet.RawName} / Canonical: {packet.CanonicalName} / Remote: {packet.RemoteEndPoint}");
+                continue;
+            }
+
+            totalsChanged = true;
+            //데이터받았을때 UI 갱신하는 이벤트 호출 (TCPDebugStatusBinder)
+            DataReceived?.Invoke(packet);
+        }
+
+        return totalsChanged;
     }
 
     // TCP 클라이언트 없이도 수신/전송 기능을 테스트할 수 있도록 키보드 입력을 처리합니다.
@@ -163,6 +184,9 @@ public class TcpDataAggregator : MonoBehaviour
     private void OnDestroy()
     {
         StopServer();
+
+        if (Instance == this)
+            Instance = null;
     }
 
     // 앱 종료 시 포트가 열린 채로 남지 않도록 정리합니다.
@@ -236,7 +260,7 @@ public class TcpDataAggregator : MonoBehaviour
         if (string.IsNullOrWhiteSpace(dataName))
             return;
 
-        receivedQueue.Enqueue(new DataPacket
+        receivedQueue.Enqueue(new TcpDataReceivedInfo
         {
             RawName = dataName,
             CanonicalName = NormalizeDataName(dataName),
@@ -462,14 +486,14 @@ public class TcpDataAggregator : MonoBehaviour
         int clientId = GetClientIdByRemoteEndPoint(remoteEndPoint);
         AddRecentMessage($"[Client {clientId}] {line}");
 
-        string[] entries = line.Split(new[] { ';' }, StringSplitOptions.RemoveEmptyEntries);
+        string[] entries = line.Split(new[] { '|' }, StringSplitOptions.RemoveEmptyEntries);
 
         foreach (string entry in entries)
         {
             if (TryParseEntry(entry, out string name, out int count))
             {
                 string canonicalName = NormalizeDataName(name);
-                receivedQueue.Enqueue(new DataPacket
+                receivedQueue.Enqueue(new TcpDataReceivedInfo
                 {
                     RawName = name,
                     CanonicalName = canonicalName,
@@ -519,30 +543,6 @@ public class TcpDataAggregator : MonoBehaviour
     private void NotifyDebugStateChanged()
     {
         DebugStateChanged?.Invoke();
-    }
-
-    // 데이터 한 건을 성공적으로 수신했을 때 외부 구독자에게 상세 정보를 전달합니다.
-    private void NotifyDataReceived(DataPacket packet)
-    {
-        DataReceived?.Invoke(new TcpDataReceivedInfo
-        {
-            ClientId = packet.ClientId,
-            RemoteEndPoint = packet.RemoteEndPoint,
-            RawLine = packet.RawLine,
-            RawName = packet.RawName,
-            CanonicalName = packet.CanonicalName,
-            Count = packet.Count
-        });
-    }
-
-    // 다른 스크립트에서 특정 데이터 이름의 현재 합계를 읽을 때 사용합니다.
-    public int GetTotal(string dataName)
-    {
-        if (string.IsNullOrEmpty(dataName))
-            return 0;
-
-        string canonicalKey = NormalizeDataName(dataName);
-        return energyTotals.GetValue(canonicalKey);
     }
 
     // 계산용으로 현재 누적 데이터를 전용 클래스 형태로 반환합니다.

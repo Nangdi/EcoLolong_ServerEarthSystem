@@ -25,8 +25,8 @@ public class GameTimer : MonoBehaviour
 
     [Header("Time Range")]
     public float gameTime = 900f; // 15분 = 900초
-    public float rePlayTime = 60f; // 1분 = 60초
-    public float targetTime = 0;
+    public float targetTime = 900;
+    public float settingGameScale = 1f; // 게임 시간의 흐름을 조절하는 변수
     public bool isRePlay = false;
     public float CurrentTime
     {
@@ -55,6 +55,7 @@ public class GameTimer : MonoBehaviour
     }
     private void Start()
     {
+        ResetTimer();
         GameManager.Instance.OnGameStart += Timer_OnGameStart;
         GameManager.Instance.OnGameEnd += Timer_OnGameEnd;
     }
@@ -62,10 +63,10 @@ public class GameTimer : MonoBehaviour
     {
         if (!IsRunning) return;
 
-        CurrentTime += Time.deltaTime;
+        CurrentTime += Time.deltaTime * settingGameScale;
         OnTimeChanged?.Invoke(currentTime);
 
-      
+
         if (CurrentTime >= targetTime)
         {
             if (!isRePlay)
@@ -82,6 +83,7 @@ public class GameTimer : MonoBehaviour
             }
             //게임매니저에 게임종료 알림
             Debug.Log("Time Over!");
+            currentTime = 0;
             OnTimeOver?.Invoke();
         }
     }
@@ -97,15 +99,16 @@ public class GameTimer : MonoBehaviour
 )
         {
             case GameState.Ready:
-                break;
-            case GameState.Playing:
                 isRePlay = false;
                 targetTime = gameTime;
 
                 break;
+            case GameState.Playing:
+
+                break;
             case GameState.Ended:
                 isRePlay = true;
-                targetTime = rePlayTime;
+                targetTime = gameTime;
                 break;
         }
     }
@@ -123,20 +126,31 @@ public class GameTimer : MonoBehaviour
     {
         gameTime = time;
     }
-
+    public void SetTimerSpeed(float scale)
+    {
+        settingGameScale = scale;
+    }
 
     public float GetCurrentTime()
     {
         return CurrentTime;
     }
+
+    // 타이머 시작 전이거나 targetTime이 0이면 gameTime을 기준으로 잔여 시간을 계산합니다.
+    public float GetRemainingTime()
+    {
+        float baseTime = targetTime > 0f ? targetTime : gameTime;
+        float remaining = baseTime - CurrentTime;
+        return remaining > 0f ? remaining : 0f;
+    }
     private void Timer_OnGameStart()
     {
+        ResetTimer();
         StartTimer();
     }
     private void Timer_OnGameEnd()
     {
-        ResetTimer();
         StopTimer();
     }
-    
+
 }

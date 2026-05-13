@@ -1,6 +1,7 @@
 using System.Text;
 using TMPro;
 using UnityEngine;
+using UnityEngine.UI;
 
 public class TcpDebugStatusBinder : MonoBehaviour
 {
@@ -13,6 +14,7 @@ public class TcpDebugStatusBinder : MonoBehaviour
     [SerializeField] private TMP_Text lastReceivedText;
     [SerializeField] private TMP_Text clientDetailsText;
     [SerializeField] private TMP_Text recentMessagesText;
+    [SerializeField] private ScrollRect recentMessagesScrollRect;
 
     private string lastReceivedSummary = "아직 수신 데이터 없음";
 
@@ -20,7 +22,7 @@ public class TcpDebugStatusBinder : MonoBehaviour
     private void Awake()
     {
         if (aggregator == null)
-            aggregator = FindObjectOfType<TcpDataAggregator>();
+            aggregator = TcpDataAggregator.Instance;
     }
 
     // 서버 상태와 수신 이벤트를 구독해서 디버그 UI를 자동으로 갱신합니다.
@@ -52,7 +54,7 @@ public class TcpDebugStatusBinder : MonoBehaviour
     private void SubscribeAggregator()
     {
         if (aggregator == null)
-            aggregator = FindObjectOfType<TcpDataAggregator>();
+            aggregator = TcpDataAggregator.Instance;
 
         if (aggregator == null)
             return;
@@ -106,7 +108,20 @@ public class TcpDebugStatusBinder : MonoBehaviour
             clientDetailsText.text = BuildLinesText("클라이언트 상태", aggregator.GetClientDebugLines());
 
         if (recentMessagesText != null)
+        {
             recentMessagesText.text = BuildLinesText("TCP 로그", aggregator.GetRecentMessagesSnapshot());
+            ScrollRecentMessagesToBottom();
+        }
+    }
+
+    // 갱신 직후 최신 로그가 보이도록 스크롤뷰를 항상 맨 아래로 이동시킵니다.
+    private void ScrollRecentMessagesToBottom()
+    {
+        if (recentMessagesScrollRect == null)
+            return;
+
+        Canvas.ForceUpdateCanvases();
+        recentMessagesScrollRect.verticalNormalizedPosition = 0f;
     }
 
     // 제목과 여러 줄 데이터를 TMP 표시용 문자열로 합칩니다.

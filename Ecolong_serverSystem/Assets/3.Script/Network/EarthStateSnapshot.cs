@@ -1,4 +1,5 @@
 using System;
+using UnityEngine;
 
 [Serializable]
 public class EarthStateSnapshot
@@ -8,6 +9,15 @@ public class EarthStateSnapshot
 
     // 현재까지 TCP로 누적된 발전 count입니다.
     public int PowerGenerationCount;
+
+    // 현재까지 TCP로 누적된 전기 count입니다. 5종 발전(화력/수력/태양광/풍력/수소)과 ELECTRIC 입력의 합계입니다.
+    public int ElectricCount;
+
+    // 화면에 표시되는 "현재 탄소" 값입니다. CARBON 입력으로 늘고 CARBON_CAPTURE 만큼 차감됩니다.
+    public int CurrentCarbon;
+
+    // 화면에 표시되는 "현재 발전토큰" 값입니다. POWER_GENERATION 입력으로 누적됩니다.
+    public int CurrentPowerGeneration;
 
     // 계산된 친환경도 단계입니다. 1이 가장 낮고 5가 가장 높습니다.
     public int EcoLevel = 5;
@@ -41,6 +51,9 @@ public class EarthStateSnapshot
     {
         CarbonCount = 0;
         PowerGenerationCount = 0;
+        ElectricCount = 0;
+        CurrentCarbon = 0;
+        CurrentPowerGeneration = 0;
         EcoLevel = 5;
         DevelopmentLevel = 1;
         EcoLevelOffset = 0;
@@ -52,12 +65,14 @@ public class EarthStateSnapshot
         SeaLevelRiseMeters = 0f;
     }
 
-    // 여러 필드를 한 번에 갱신할 때 사용하는 헬퍼입니다.
-    // 값이 한 프레임 안에서 같이 바뀌므로, 세터를 따로 여러 번 호출하는 대신
-    // 이 메서드로 현재 상태 스냅샷을 한 번에 덮어씁니다.
-    public void SetValues(
+    // 모든 필드를 한 번에 비교한 뒤 차이가 있는 경우에만 값을 갱신하고 true를 반환합니다.
+    // 호출자(EarthStateManager)는 반환값으로 StateChanged 이벤트 발행 여부를 결정할 수 있습니다.
+    public bool SetValues(
         int carbonCount,
         int powerGenerationCount,
+        int electricCount,
+        int currentCarbon,
+        int currentPowerGeneration,
         int ecoLevel,
         int developmentLevel,
         int ecoLevelOffset,
@@ -68,8 +83,30 @@ public class EarthStateSnapshot
         float arcticIcePercent,
         float seaLevelRiseMeters)
     {
+        bool changed =
+            CarbonCount != carbonCount ||
+            PowerGenerationCount != powerGenerationCount ||
+            ElectricCount != electricCount ||
+            CurrentCarbon != currentCarbon ||
+            CurrentPowerGeneration != currentPowerGeneration ||
+            EcoLevel != ecoLevel ||
+            DevelopmentLevel != developmentLevel ||
+            EcoLevelOffset != ecoLevelOffset ||
+            !string.Equals(StateName, stateName, StringComparison.Ordinal) ||
+            !Mathf.Approximately(CarbonPpm, carbonPpm) ||
+            !Mathf.Approximately(CarbonPpmChangePerSecond, carbonPpmChangePerSecond) ||
+            !Mathf.Approximately(TemperatureDeltaC, temperatureDeltaC) ||
+            !Mathf.Approximately(ArcticIcePercent, arcticIcePercent) ||
+            !Mathf.Approximately(SeaLevelRiseMeters, seaLevelRiseMeters);
+
+        if (!changed)
+            return false;
+
         CarbonCount = carbonCount;
         PowerGenerationCount = powerGenerationCount;
+        ElectricCount = electricCount;
+        CurrentCarbon = currentCarbon;
+        CurrentPowerGeneration = currentPowerGeneration;
         EcoLevel = ecoLevel;
         DevelopmentLevel = developmentLevel;
         EcoLevelOffset = ecoLevelOffset;
@@ -79,5 +116,6 @@ public class EarthStateSnapshot
         TemperatureDeltaC = temperatureDeltaC;
         ArcticIcePercent = arcticIcePercent;
         SeaLevelRiseMeters = seaLevelRiseMeters;
+        return true;
     }
 }

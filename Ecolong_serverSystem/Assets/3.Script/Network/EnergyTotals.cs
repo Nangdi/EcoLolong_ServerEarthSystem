@@ -3,102 +3,81 @@ using System;
 [Serializable]
 public class EnergyTotals
 {
-    public int ThermalPower;
-    public int HydroPower;
-    public int SolarPower;
-    public int WindPower;
-    public int Hydrogen;
-    public int ElectricEnergy;
-    public int Carbon;
-    public int PowerGeneration;
-    public int CityEcoScore;
-    public int CityBuildingCount;
+    public int thermalPower;
+    public int hydroPower;
+    public int solarPower;
+    public int windPower;
+    public int hydrogen;
+    public int electricCount;
+    public int totalCarbon;
+    public int powerGeneration;
+    public int cityEcoScore;
+    public int totalCityBuildingCount;
+    public int captureCarbon;
+    public int currentPowerGeneration;
+
 
     // 지원하는 모든 누적값을 한 번에 0으로 초기화합니다.
     public void Clear()
     {
-        ThermalPower = 0;
-        HydroPower = 0;
-        SolarPower = 0;
-        WindPower = 0;
-        Hydrogen = 0;
-        ElectricEnergy = 0;
-        Carbon = 0;
-        PowerGeneration = 0;
-        CityEcoScore = 0;
-        CityBuildingCount = 0;
-    }
-
-    // 표준 키 이름에 해당하는 값을 반환합니다.
-    public int GetValue(string canonicalKey)
-    {
-        switch (canonicalKey)
-        {
-            case "THERMAL_POWER":
-                return ThermalPower;
-            case "HYDRO_POWER":
-                return HydroPower;
-            case "SOLAR_POWER":
-                return SolarPower;
-            case "WIND_POWER":
-                return WindPower;
-            case "HYDROGEN":
-                return Hydrogen;
-            case "ELECTRIC_ENERGY":
-                return ElectricEnergy;
-            case "CARBON":
-                return Carbon;
-            case "POWER_GENERATION":
-                return PowerGeneration;
-            case "CITY_ECO_SCORE":
-                return CityEcoScore;
-            case "CITY_BUILDING_COUNT":
-                return CityBuildingCount;
-            default:
-                return 0;
-        }
+        thermalPower = 0;
+        hydroPower = 0;
+        solarPower = 0;
+        windPower = 0;
+        hydrogen = 0;
+        electricCount = 0;
+        totalCarbon = 0;
+        powerGeneration = 0;
+        cityEcoScore = 0;
+        totalCityBuildingCount = 0;
+        captureCarbon = 0;
+        currentPowerGeneration = 0;
     }
 
     // 표준 키 이름에 맞는 누적값을 증가시킵니다.
-    // 5종 발전(화력/수력/태양광/풍력/수소)은 들어온 count만큼 ElectricEnergy(전기 카운트)도 함께 누적합니다.
+    // 5종 발전(화력/수력/태양광/풍력/수소)은 들어온 count만큼 electricCount도 함께 누적합니다.
     public bool AddValue(string canonicalKey, int amount)
     {
         switch (canonicalKey)
         {
-            case "THERMAL_POWER":
-                ThermalPower += amount;
-                ElectricEnergy += amount;
+            case "THERMAL":
+                thermalPower += amount;
+                electricCount += amount;
                 return true;
-            case "HYDRO_POWER":
-                HydroPower += amount;
-                ElectricEnergy += amount;
+            case "HYDRO":
+                hydroPower += amount;
+                electricCount += amount;
                 return true;
-            case "SOLAR_POWER":
-                SolarPower += amount;
-                ElectricEnergy += amount;
+            case "SOLAR":
+                solarPower += amount;
+                electricCount += amount;
                 return true;
-            case "WIND_POWER":
-                WindPower += amount;
-                ElectricEnergy += amount;
+            case "WIND":
+                windPower += amount;
+                electricCount += amount;
                 return true;
             case "HYDROGEN":
-                Hydrogen += amount;
-                ElectricEnergy += amount;
+                hydrogen += amount;
+                electricCount += amount;
                 return true;
-            case "ELECTRIC_ENERGY":
-                ElectricEnergy += amount;
+            case "ELECTRIC":
+                electricCount += amount;
                 return true;
             case "CARBON":
-                Carbon += amount;
+                totalCarbon += amount;
                 return true;
             case "POWER_GENERATION":
-                PowerGeneration += amount;
+                powerGeneration += amount;
+                currentPowerGeneration += amount;
                 return true;
-            case "CITY_ECO_SCORE":
-                CityEcoScore += amount;
+            case "CARBON_CAPTURE":
+                captureCarbon = amount;
                 return true;
-            case "CITY_BUILDING_COUNT":
-                CityBuildingCount += amount;
+            case "ECO":
+                cityEcoScore = amount;
+                return true;
+            case "BUILDING":
+                totalCityBuildingCount = amount;
                 return true;
             default:
                 return false;

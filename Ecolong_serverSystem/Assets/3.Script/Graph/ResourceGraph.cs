@@ -30,12 +30,12 @@ public class ResourceGraphs : MonoBehaviour
 
     [Header("채우기")]
     [SerializeField] private bool useFillArea = true;
-    [SerializeField] private Material fillMaterial;
-    [SerializeField] private Color fillColor = new Color(0.2f, 0.95f, 0.35f, 0.2f);
 
     [Header("값 범위")]
     [SerializeField] private float maxValue = 100f;
     [SerializeField] private float initialGraphValue = 0f;
+    [Tooltip("여러 그래프가 동일한 y축 스케일을 공유하려면 같은 GraphScaleSync를 셋에 모두 연결합니다.")]
+    [SerializeField] private GraphScaleSync sharedScale;
 
     [SerializeField] private List<GraphPoint> points = new List<GraphPoint>();
     private List<GraphPoint> recordPoints = new List<GraphPoint>();
@@ -46,18 +46,25 @@ public class ResourceGraphs : MonoBehaviour
 
     [Header("디버그")]
     [SerializeField] private bool isGraphMappingDebug = true;
+    [SerializeField] private bool isReplayGraph = false;
 
     private int tempValue;
     private Coroutine recordCycleCoroutine;
     private Coroutine replayCoroutine;
     private Mesh fillMesh;
-    private Material runtimeFillMaterial;
     private bool isSubscribedToGameEvents;
 
     private void Awake()
     {
         if (lineRenderer == null)
             lineRenderer = GetComponent<LineRenderer>();
+
+        // View alignment에선 segment마다 카메라를 향하는 별도 billboard가 만들어져
+        // 짧은 segment·sharp corner 조합에서 코너마다 갭이 보입니다.
+        // TransformZ로 두면 라인이 로컬 XY 평면의 연속 mesh로 그려져 갭이 사라집니다.
+        lineRenderer.alignment = LineAlignment.TransformZ;
+        lineRenderer.numCornerVertices = 4;
+        lineRenderer.numCapVertices = 4;
 
         EnsureFillComponents();
         ApplyFillMaterial();
@@ -76,10 +83,7 @@ public class ResourceGraphs : MonoBehaviour
     private void Start()
     {
         EnsureFillComponents();
-        UpdateGraphBounds();
-        lineRenderer.positionCount = 2;
-        lineRenderer.SetPosition(0, origin.position);
-        lineRenderer.SetPosition(1, maxPoint.position);
+
         ClearFillMesh();
     }
 
@@ -87,15 +91,10 @@ public class ResourceGraphs : MonoBehaviour
     {
         TrySubscribeGameEvents();
 
-        if (Input.GetKeyDown(KeyCode.Space))
-            AddPoint(tempValue--);
-
-        if (Input.GetKeyDown(KeyCode.R))
-            replayCoroutine = StartCoroutine(recordCycleX15_co());
-
         if (isGraphMappingDebug)
         {
             UpdateGraphBounds();
+            lineRenderer.positionCount = 2;
             lineRenderer.SetPosition(0, origin.position);
             lineRenderer.SetPosition(1, maxPoint.position);
         }
@@ -119,8 +118,9 @@ public class ResourceGraphs : MonoBehaviour
         initialGraphValue = value;
     }
 
-    private void RedrawGraph(List<GraphPoint> currentPoints, int playBackSpeed = 1)
+    private void RedrawGraph(List<GraphPoint> currentPoints)
     {
+
         if (currentPoints == null || currentPoints.Count == 0)
         {
             lineRenderer.positionCount = 0;
@@ -128,7 +128,7 @@ public class ResourceGraphs : MonoBehaviour
             return;
         }
 
-        float currentTime = GameTimer.Instance.CurrentTime * playBackSpeed;
+        float currentTime = GameTimer.Instance.CurrentTime;
         Vector3 size = maxPoint.position - origin.position;
         List<Vector3> renderedPositions = new List<Vector3>();
 
@@ -137,17 +137,24 @@ public class ResourceGraphs : MonoBehaviour
             if (currentPoints[i].time > currentTime)
                 break;
 
-            if (currentPoints[i].value > maxValue)
-                maxValue = currentPoints[i].value;
+            // sharedScale이 있으면 공유 max에 보고, 없으면 로컬 max만 갱신
+            if (sharedScale != null)
+            {
+                sharedScale.Report(currentPoints[i].value);
+                if (currentPoints[i].value > maxValue)
+                    maxValue = currentPoints[i].value;
+
+            }
+
+            float effectiveMax = sharedScale != null ? sharedScale.CurrentMax : maxValue;
 
             float normalizedTime = currentPoints[i].time / Mathf.Max(GameTimer.Instance.gameTime, 0.01f);
-            float normalizedValue = currentPoints[i].value / Mathf.Max(maxValue, 0.01f);
+            float normalizedValue = currentPoints[i].value / Mathf.Max(effectiveMax, 0.01f);
             Vector3 position = origin.position + new Vector3(
                 size.x * normalizedTime,
                 size.y * normalizedValue,
                 0f
             );
-
             lineRenderer.positionCount = renderedPositions.Count + 1;
             lineRenderer.SetPosition(renderedPositions.Count, position);
             renderedPositions.Add(position);
@@ -161,7 +168,8 @@ public class ResourceGraphs : MonoBehaviour
     {
         points.Clear();
         lineRenderer.positionCount = 0;
-        maxValue = 100f;
+        // maxValue = 100f;
+        if (sharedScale != null) sharedScale.ResetMax();
         tempValue = 0;
         ClearFillMesh();
     }
@@ -180,25 +188,35 @@ public class ResourceGraphs : MonoBehaviour
 
     private IEnumerator recordCycle_co()
     {
-        while (true)
+        while (!isReplayGraph)
         {
             yield return new WaitForSeconds(1f);
             RedrawGraph(points);
         }
     }
 
+    // GameManager.OnReplay 핸들러에서 호출됩니다.
+    // timer.isRePlay/StartTimer/SetTimerSpeed/gameTimeScale은 이미 GameManager가 일괄 처리한 상태입니다.
     private IEnumerator recordCycleX15_co()
     {
         SoftClearGraph();
-        GameManager.Instance.gameTimeScale = 1f;
-        timer.isRePlay = true;
-        timer.StartTimer();
-
         while (true)
         {
-            yield return new WaitForSeconds(0.15f);
-            RedrawGraph(recordPoints, 15);
+            yield return new WaitForSeconds(1f / 15f);
+            RedrawGraph(recordPoints);
         }
+    }
+
+    // OnReplay 신호를 받으면 isReplayGraph가 켜진 그래프만 재생을 시작합니다.
+    private void Graph_OnReplay()
+    {
+        if (!isReplayGraph)
+            return;
+
+        if (replayCoroutine != null)
+            StopCoroutine(replayCoroutine);
+
+        replayCoroutine = StartCoroutine(recordCycleX15_co());
     }
 
     private void Graph_OnGameStart()
@@ -227,31 +245,19 @@ public class ResourceGraphs : MonoBehaviour
         recordPoints = new List<GraphPoint>(points);
     }
 
-    // 인스펙터에 지정한 머티리얼과 색으로 채우기 렌더러를 맞춥니다.
+    // 색/머티리얼은 같은 GameObject의 GraphMaterialController가 전담합니다.
+    // 여기서는 fill 렌더러를 등록하고 sortingOrder, enabled만 처리합니다.
     private void ApplyFillMaterial()
     {
         EnsureFillComponents();
 
-        if (fillMeshRenderer == null)
+        if (fillMeshRenderer == null || lineRenderer == null)
             return;
 
-        Material targetMaterial = fillMaterial;
-        if (targetMaterial == null)
-        {
-            if (runtimeFillMaterial == null)
-            {
-                Shader shader = Shader.Find("Sprites/Default");
-                runtimeFillMaterial = new Material(shader);
-                runtimeFillMaterial.name = $"{name}_RuntimeFillMaterial";
-            }
+        var matCtrl = GetComponent<GraphMaterialController>();
+        if (matCtrl != null)
+            matCtrl.RegisterFillRenderer(fillMeshRenderer);
 
-            targetMaterial = runtimeFillMaterial;
-        }
-
-        targetMaterial.color = fillColor;
-        // Fill은 UI(BG) 위에 그려져야 하므로 Overlay 큐로 올리고, 항상 그려지도록 ZTest를 Always로 둡니다.
-        targetMaterial.renderQueue = 4000;
-        fillMeshRenderer.sharedMaterial = targetMaterial;
         fillMeshRenderer.sortingLayerID = lineRenderer.sortingLayerID;
         fillMeshRenderer.sortingOrder = lineRenderer.sortingOrder - 1;
         fillMeshRenderer.enabled = useFillArea && lineRenderer.positionCount > 1;
@@ -369,6 +375,7 @@ public class ResourceGraphs : MonoBehaviour
 
         GameManager.Instance.OnGameStart += Graph_OnGameStart;
         GameManager.Instance.OnGameEnd += Graph_OnGameEnd;
+        GameManager.Instance.OnReplay += Graph_OnReplay;
         isSubscribedToGameEvents = true;
     }
 
@@ -380,6 +387,7 @@ public class ResourceGraphs : MonoBehaviour
 
         GameManager.Instance.OnGameStart -= Graph_OnGameStart;
         GameManager.Instance.OnGameEnd -= Graph_OnGameEnd;
+        GameManager.Instance.OnReplay -= Graph_OnReplay;
         isSubscribedToGameEvents = false;
     }
 }
