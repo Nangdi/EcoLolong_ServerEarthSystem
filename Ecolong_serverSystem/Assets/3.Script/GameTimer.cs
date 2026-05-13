@@ -30,7 +30,6 @@ public class GameTimer : MonoBehaviour
     public float gameTime = 900f; // 15분 = 900초
     public float targetTime = 900;
     public float settingGameScale = 1f; // 게임 시간의 흐름을 조절하는 변수
-    public bool isRePlay = false;
     public float CurrentTime
     {
         get { return _currentTime; }
@@ -72,22 +71,23 @@ public class GameTimer : MonoBehaviour
 
         if (CurrentTime >= targetTime)
         {
-            if (!isRePlay)
+            _currentTime = 0;
+            if (!GameManager.Instance.IsReplay)
             {
 
                 GameManager.Instance.SetGameState(GameState.Ended);
-
+                Debug.Log("Time Over!");
+                OnTimeOver?.Invoke();
             }
             else
             {
                 GameManager.Instance.SetGameState(GameState.Ready);
+                Timer_OnGameEnd();
                 //Debug.Log("Replay End! . Game End.");
-                //OnReplayEnd?.Invoke();
+                // ?.Invoke();
             }
             //게임매니저에 게임종료 알림
-            Debug.Log("Time Over!");
-            _currentTime = 0;
-            OnTimeOver?.Invoke();
+
         }
     }
     public void StartTimer()
@@ -102,7 +102,6 @@ public class GameTimer : MonoBehaviour
 )
         {
             case GameState.Ready:
-                isRePlay = false;
                 targetTime = gameTime;
 
                 break;
@@ -110,7 +109,6 @@ public class GameTimer : MonoBehaviour
 
                 break;
             case GameState.Ended:
-                isRePlay = true;
                 targetTime = gameTime;
                 break;
         }

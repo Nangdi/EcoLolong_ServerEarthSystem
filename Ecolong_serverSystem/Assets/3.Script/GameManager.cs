@@ -34,6 +34,7 @@ public class GameManager : MonoBehaviour
 
     public float gameTimeScale = 1f; // 게임 시간의 흐름을 조절하는 변수
     public GameState CurrentGameState { get; private set; } = GameState.Ready; // 현재 게임 상태를 나타내는 변수
+    public bool IsReplay { get; private set; } = false; // 리플레이 진행 여부. GameTimer 등 외부에서 읽어 사용합니다.
 
     public TcpDataAggregator tcpDataAggregator ; // TCP 데이터 집계기 참조
 
@@ -110,7 +111,7 @@ public class GameManager : MonoBehaviour
 
         gameTimeScale = 1f;
         Time.timeScale = 1f;
-        GameTimer.Instance.isRePlay = true;
+        IsReplay = true;
         GameTimer.Instance.StartTimer();
         GameTimer.Instance.SetTimerSpeed(_replayTimerSpeed);
         OnReplay?.Invoke();
@@ -118,6 +119,16 @@ public class GameManager : MonoBehaviour
     public void SetGameState(GameState newState)
     {
         CurrentGameState = newState;
+        // 상태 전환에 맞춰 리플레이 여부도 함께 갱신합니다. Ready는 일반 플레이, Ended는 다음 입력 시 리플레이로 진입합니다.
+        switch (newState)
+        {
+            case GameState.Ready:
+                IsReplay = false;
+                break;
+            case GameState.Ended:
+                IsReplay = true;
+                break;
+        }
         GameTimer.Instance.SettingTimer(); // 게임 상태 변경 시 GameTimer에도 전달
     }
 }

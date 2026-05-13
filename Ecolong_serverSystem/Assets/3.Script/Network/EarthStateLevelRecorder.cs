@@ -58,7 +58,7 @@ public class EarthStateLevelRecorder : MonoBehaviour
     {
         TrySubscribe();
 
-        if (_timer != null && _timer.isRePlay && _timer.IsRunning)
+        if (_timer != null && GameManager.Instance.IsReplay && _timer.IsRunning)
             ApplyLevelsForReplayTime(_timer.CurrentTime);
     }
 

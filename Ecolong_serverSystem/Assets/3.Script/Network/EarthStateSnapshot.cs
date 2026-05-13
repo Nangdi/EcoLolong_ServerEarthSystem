@@ -32,7 +32,7 @@ public class EarthStateSnapshot
     public string StateName = "자연낙원";
 
     // 산업화 이전 280ppm을 기준으로 계산한 현재 이산화탄소 농도입니다.
-    public float CarbonPpm = 280f;
+    public float CarbonPpm = 0;
 
     // 친환경도/발전도/탄소토큰에 의해 매초 얼마나 ppm이 변하는지 나타냅니다.
     public float CarbonPpmChangePerSecond;
@@ -58,7 +58,7 @@ public class EarthStateSnapshot
         DevelopmentLevel = 1;
         EcoLevelOffset = 0;
         StateName = "자연낙원";
-        CarbonPpm = 280f;
+        CarbonPpm = 0f;
         CarbonPpmChangePerSecond = 0f;
         TemperatureDeltaC = 0f;
         ArcticIcePercent = 100f;

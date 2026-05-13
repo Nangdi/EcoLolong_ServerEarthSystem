@@ -158,10 +158,10 @@ public class ResourceGraphs : MonoBehaviour
             if (_sharedScale != null)
             {
                 _sharedScale.Report(currentPoints[i].value);
-                if (currentPoints[i].value > _maxValue)
-                    _maxValue = currentPoints[i].value;
 
             }
+            if (currentPoints[i].value > _maxValue)
+                _maxValue = currentPoints[i].value;
 
             float effectiveMax = _sharedScale != null ? _sharedScale.CurrentMax : _maxValue;
 
@@ -212,7 +212,7 @@ public class ResourceGraphs : MonoBehaviour
     }
 
     // GameManager.OnReplay 핸들러에서 호출됩니다.
-    // timer.isRePlay/StartTimer/SetTimerSpeed/gameTimeScale은 이미 GameManager가 일괄 처리한 상태입니다.
+    // GameManager.IsReplay/StartTimer/SetTimerSpeed/gameTimeScale은 이미 GameManager가 일괄 처리한 상태입니다.
     private IEnumerator recordCycleX15_co()
     {
         SoftClearGraph();

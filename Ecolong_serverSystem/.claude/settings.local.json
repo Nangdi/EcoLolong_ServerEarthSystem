@@ -13,7 +13,14 @@
       "mcp__UnityMCP__manage_camera",
       "mcp__UnityMCP__manage_components",
       "mcp__UnityMCP__manage_gameobject",
-      "mcp__UnityMCP__set_active_instance"
+      "mcp__UnityMCP__set_active_instance",
+      "Bash(ls \"C:/Users/User/.claude/\" 2>&1 | head -30 && echo \"---\" && ls \"c:/Users/User/Documents/GitHub/EcoLolong_ServerEarthSystem/Ecolong_serverSystem/Packages/\" 2>&1)",
+      "Read(//c/Users/User/.claude/**)",
+      "WebFetch(domain:github.com)",
+      "Bash(where uvx *)",
+      "Bash(where uv *)",
+      "Bash(where python *)",
+      "Bash(where claude *)"
     ]
   }
 }

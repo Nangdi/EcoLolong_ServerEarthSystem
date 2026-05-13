@@ -200,12 +200,16 @@ public class EarthStateManager : MonoBehaviour
         float carbonRatePerSecond = CalculateCarbonPpmChangePerSecond(ecoLevel, developmentLevel, carbonCount);
 
         float nextCarbonPpm = _currentState.CarbonPpm;
-        if (!Application.isPlaying)
-            nextCarbonPpm = Mathf.Max(PreIndustrialCarbonPpm, _currentState.CarbonPpm);
-        else
-            nextCarbonPpm = Mathf.Max(PreIndustrialCarbonPpm, _currentState.CarbonPpm + carbonRatePerSecond * Mathf.Max(0f, deltaTime));
+        if (Application.isPlaying)
+        {
+            // nextCarbonPpm = Mathf.Max(PreIndustrialCarbonPpm, _currentState.CarbonPpm + carbonRatePerSecond * Mathf.Max(0f, deltaTime));
+            nextCarbonPpm =  _currentState.CarbonPpm + carbonRatePerSecond * Mathf.Max(0f, deltaTime);
+            
+        }
+            // nextCarbonPpm = Mathf.Max(PreIndustrialCarbonPpm, _currentState.CarbonPpm);
+            // nextCarbonPpm =  _currentState.CarbonPpm;ㄴ
 
-        float temperatureDeltaC = CalculateTemperatureDelta(nextCarbonPpm);
+        float temperatureDeltaC = Mathf.Max(-1f, CalculateTemperatureDelta(nextCarbonPpm+280));
         float arcticIcePercent = CalculateArcticIcePercent(temperatureDeltaC);
         float seaLevelRiseMeters = CalculateSeaLevelRiseMeters(temperatureDeltaC);
 
@@ -271,7 +275,7 @@ public class EarthStateManager : MonoBehaviour
 
     public static float CalculateTemperatureDelta(float carbonPpm)
     {
-        float safeCarbonPpm = Mathf.Max(0.0001f, carbonPpm);
+        float safeCarbonPpm = Mathf.Max(-1f, carbonPpm);
         return TemperatureLogFactor * Mathf.Log(safeCarbonPpm / PreIndustrialCarbonPpm);
     }
 

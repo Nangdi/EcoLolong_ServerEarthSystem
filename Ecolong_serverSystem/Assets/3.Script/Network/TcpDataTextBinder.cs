@@ -26,7 +26,7 @@ public class TcpDataTextBinder : MonoBehaviour
     [FormerlySerializedAs("carbonPpmFormat")]
     [SerializeField] private string _carbonPpmFormat = "{0:0}ppm";
     [FormerlySerializedAs("temperatureFormat")]
-    [SerializeField] private string _temperatureFormat = "{0:0.#}°C";
+    [SerializeField] private string _temperatureFormat = "{0:0.#}℃";
     [FormerlySerializedAs("arcticIceFormat")]
     [SerializeField] private string _arcticIceFormat = "{0:0}%";
     [FormerlySerializedAs("seaLevelFormat")]
@@ -210,7 +210,7 @@ public class TcpDataTextBinder : MonoBehaviour
         SetText(_ecoLevelText, string.Format(_levelFormat, snapshot.EcoLevel));
         SetText(_stateNameText, snapshot.StateName);
 
-        SetText(_carbonPpmText, string.Format(_carbonPpmFormat, snapshot.CarbonPpm));
+        SetText(_carbonPpmText, string.Format(_carbonPpmFormat, snapshot.CarbonPpm + 280f));
         SetText(_temperatureText, string.Format(_temperatureFormat, snapshot.TemperatureDeltaC));
         SetText(_arcticIceText, string.Format(_arcticIceFormat, snapshot.ArcticIcePercent));
         SetText(_seaLevelText, string.Format(_seaLevelFormat, snapshot.SeaLevelRiseMeters * 100)); // 미터 단위를 센티미터로 변환
