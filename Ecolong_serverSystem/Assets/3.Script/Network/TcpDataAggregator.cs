@@ -10,21 +10,22 @@ using System.Threading;
 using System.Threading.Tasks;
 using TMPro;
 using UnityEngine;
+using UnityEngine.Serialization;
 
 public class TcpDataAggregator : MonoBehaviour
 {
-    private static TcpDataAggregator instance;
+    private static TcpDataAggregator s_instance;
 
     // 다른 스크립트가 처음 접근하는 시점에 씬에서 한 번 찾아서 보완하는 lazy singleton getter입니다.
     public static TcpDataAggregator Instance
     {
         get
         {
-            if (instance == null)
-                instance = FindObjectOfType<TcpDataAggregator>();
-            return instance;
+            if (s_instance == null)
+                s_instance = FindObjectOfType<TcpDataAggregator>();
+            return s_instance;
         }
-        private set { instance = value; }
+        private set { s_instance = value; }
     }
 
     private const int MaxRecentMessages = 200;
@@ -44,35 +45,47 @@ public class TcpDataAggregator : MonoBehaviour
     };
 
     [Header("TCP Server")]
-    [SerializeField] private int listenPort = 5000;
-    [SerializeField] private int maxClientCount = 3;
-    [SerializeField] private bool autoStart = true;
+    [FormerlySerializedAs("listenPort")]
+    [SerializeField] private int _listenPort = 5000;
+    [FormerlySerializedAs("maxClientCount")]
+    [SerializeField] private int _maxClientCount = 3;
+    [FormerlySerializedAs("autoStart")]
+    [SerializeField] private bool _autoStart = true;
 
     [Header("Keyboard Test")]
-    [SerializeField] private bool enableKeyboardTest = true;
-    [SerializeField] private KeyCode sendATestKey = KeyCode.Alpha1;
-    [SerializeField] private KeyCode sendBTestKey = KeyCode.Alpha2;
-    [SerializeField] private KeyCode clearTestKey = KeyCode.Alpha0;
-    [SerializeField] private int testAddCount = 1;
-    [SerializeField] private KeyCode sendMessageTestKey = KeyCode.T;
+    [FormerlySerializedAs("enableKeyboardTest")]
+    [SerializeField] private bool _enableKeyboardTest = true;
+    [FormerlySerializedAs("sendATestKey")]
+    [SerializeField] private KeyCode _sendATestKey = KeyCode.Alpha1;
+    [FormerlySerializedAs("sendBTestKey")]
+    [SerializeField] private KeyCode _sendBTestKey = KeyCode.Alpha2;
+    [FormerlySerializedAs("clearTestKey")]
+    [SerializeField] private KeyCode _clearTestKey = KeyCode.Alpha0;
+    [FormerlySerializedAs("testAddCount")]
+    [SerializeField] private int _testAddCount = 1;
+    [FormerlySerializedAs("sendMessageTestKey")]
+    [SerializeField] private KeyCode _sendMessageTestKey = KeyCode.T;
 
     [Header("문자열 전송")]
-    [SerializeField] private string defaultOutgoingMessage = "PING";
-    [SerializeField] private bool appendOutgoingLineEnding = true;
-    [SerializeField] private TMP_InputField outgoingMessageInputField;
+    [FormerlySerializedAs("defaultOutgoingMessage")]
+    [SerializeField] private string _defaultOutgoingMessage = "PING";
+    [FormerlySerializedAs("appendOutgoingLineEnding")]
+    [SerializeField] private bool _appendOutgoingLineEnding = true;
+    [FormerlySerializedAs("outgoingMessageInputField")]
+    [SerializeField] private TMP_InputField _outgoingMessageInputField;
 
-    private readonly ConcurrentQueue<TcpDataReceivedInfo> receivedQueue = new ConcurrentQueue<TcpDataReceivedInfo>();
-    private readonly List<TcpClient> connectedClients = new List<TcpClient>();
-    private readonly Dictionary<TcpClient, ClientConnectionInfo> clientInfoByClient = new Dictionary<TcpClient, ClientConnectionInfo>();
-    private readonly Queue<string> recentMessages = new Queue<string>();
-    private readonly object clientLock = new object();
+    private readonly ConcurrentQueue<TcpDataReceivedInfo> _receivedQueue = new ConcurrentQueue<TcpDataReceivedInfo>();
+    private readonly List<TcpClient> _connectedClients = new List<TcpClient>();
+    private readonly Dictionary<TcpClient, ClientConnectionInfo> _clientInfoByClient = new Dictionary<TcpClient, ClientConnectionInfo>();
+    private readonly Queue<string> _recentMessages = new Queue<string>();
+    private readonly object _clientLock = new object();
 
-    private TcpListener listener;
-    private CancellationTokenSource cancellationTokenSource;
-    private bool isServerRunning;
-    private bool connectionStatusChanged;
-    private int nextClientId = 1;
-    private readonly EnergyTotals energyTotals = new EnergyTotals();
+    private TcpListener _listener;
+    private CancellationTokenSource _cancellationTokenSource;
+    private bool _isServerRunning;
+    private bool _connectionStatusChanged;
+    private int _nextClientId = 1;
+    private readonly EnergyTotals _energyTotals = new EnergyTotals();
 
     public event Action<EnergyTotals> TotalsChanged;
     public event Action<TcpDataReceivedInfo> DataReceived;
@@ -113,7 +126,7 @@ public class TcpDataAggregator : MonoBehaviour
     // 씬 시작 시 설정값에 따라 TCP 서버를 자동으로 시작합니다.
     private void Start()
     {
-        if (autoStart)
+        if (_autoStart)
             StartServer();
 
         NotifyTotalsChanged();
@@ -124,14 +137,12 @@ public class TcpDataAggregator : MonoBehaviour
     private void Update()
     {
         HandleKeyboardTestInput();
-        
-        //TCP 데이터 처리 구간
+
         bool totalsChanged = ProcessReceivedQueue();
 
-        //TCP 연결 상태 변경시
-        if (connectionStatusChanged)
+        if (_connectionStatusChanged)
         {
-            connectionStatusChanged = false;
+            _connectionStatusChanged = false;
             NotifyDebugStateChanged();
         }
 
@@ -144,16 +155,15 @@ public class TcpDataAggregator : MonoBehaviour
     {
         bool totalsChanged = false;
 
-        while (receivedQueue.TryDequeue(out TcpDataReceivedInfo packet))
+        while (_receivedQueue.TryDequeue(out TcpDataReceivedInfo packet))
         {
-            if (!energyTotals.AddValue(packet.CanonicalName, packet.Count))
+            if (!_energyTotals.AddValue(packet.CanonicalName, packet.Count))
             {
                 AddRecentMessage($"[경고] 지원하지 않는 키 / Raw: {packet.RawName} / Canonical: {packet.CanonicalName} / Remote: {packet.RemoteEndPoint}");
                 continue;
             }
 
             totalsChanged = true;
-            //데이터받았을때 UI 갱신하는 이벤트 호출 (TCPDebugStatusBinder)
             DataReceived?.Invoke(packet);
         }
 
@@ -163,24 +173,23 @@ public class TcpDataAggregator : MonoBehaviour
     // TCP 클라이언트 없이도 수신/전송 기능을 테스트할 수 있도록 키보드 입력을 처리합니다.
     private void HandleKeyboardTestInput()
     {
-        if (!enableKeyboardTest)
+        if (!_enableKeyboardTest)
             return;
 
-        if (Input.GetKeyDown(sendATestKey))
-            AddData("화력", testAddCount);
+        if (Input.GetKeyDown(_sendATestKey))
+            AddData("화력", _testAddCount);
 
-        if (Input.GetKeyDown(sendBTestKey))
-            AddData("수력", testAddCount);
+        if (Input.GetKeyDown(_sendBTestKey))
+            AddData("수력", _testAddCount);
 
-        if (Input.GetKeyDown(clearTestKey))
+        if (Input.GetKeyDown(_clearTestKey))
             ClearTotals();
         if (Input.GetKeyDown(KeyCode.Alpha3))
-            AddData("태양광", testAddCount);
-        if (Input.GetKeyDown(sendMessageTestKey))
+            AddData("태양광", _testAddCount);
+        if (Input.GetKeyDown(_sendMessageTestKey))
             SendCurrentMessageToAllClients();
     }
 
-    // 오브젝트가 삭제될 때 TCP 연결을 정리합니다.
     private void OnDestroy()
     {
         StopServer();
@@ -189,27 +198,25 @@ public class TcpDataAggregator : MonoBehaviour
             Instance = null;
     }
 
-    // 앱 종료 시 포트가 열린 채로 남지 않도록 정리합니다.
     private void OnApplicationQuit()
     {
         StopServer();
     }
 
-    // 설정된 포트에서 TCP 클라이언트 접속 대기를 시작합니다.
     public void StartServer()
     {
-        if (isServerRunning)
+        if (_isServerRunning)
             return;
 
         try
         {
-            cancellationTokenSource = new CancellationTokenSource();
-            listener = new TcpListener(IPAddress.Any, listenPort);
-            listener.Start();
-            isServerRunning = true;
+            _cancellationTokenSource = new CancellationTokenSource();
+            _listener = new TcpListener(IPAddress.Any, _listenPort);
+            _listener.Start();
+            _isServerRunning = true;
 
-            _ = AcceptClientsAsync(cancellationTokenSource.Token);
-            AddRecentMessage($"[서버] 시작 / Port: {listenPort}");
+            _ = AcceptClientsAsync(_cancellationTokenSource.Token);
+            AddRecentMessage($"[서버] 시작 / Port: {_listenPort}");
             NotifyDebugStateChanged();
         }
         catch (Exception exception)
@@ -219,34 +226,33 @@ public class TcpDataAggregator : MonoBehaviour
         }
     }
 
-    // TCP 서버를 중지하고 연결된 모든 클라이언트를 닫습니다.
     public void StopServer()
     {
-        if (!isServerRunning && listener == null)
+        if (!_isServerRunning && _listener == null)
             return;
 
-        isServerRunning = false;
+        _isServerRunning = false;
 
-        if (cancellationTokenSource != null)
+        if (_cancellationTokenSource != null)
         {
-            cancellationTokenSource.Cancel();
-            cancellationTokenSource.Dispose();
-            cancellationTokenSource = null;
+            _cancellationTokenSource.Cancel();
+            _cancellationTokenSource.Dispose();
+            _cancellationTokenSource = null;
         }
 
-        if (listener != null)
+        if (_listener != null)
         {
-            listener.Stop();
-            listener = null;
+            _listener.Stop();
+            _listener = null;
         }
 
-        lock (clientLock)
+        lock (_clientLock)
         {
-            foreach (TcpClient client in connectedClients)
+            foreach (TcpClient client in _connectedClients)
                 client.Close();
 
-            connectedClients.Clear();
-            clientInfoByClient.Clear();
+            _connectedClients.Clear();
+            _clientInfoByClient.Clear();
         }
 
         NotifyTotalsChanged();
@@ -254,13 +260,12 @@ public class TcpDataAggregator : MonoBehaviour
         AddRecentMessage("[서버] 중지");
     }
 
-    // TCP를 거치지 않고 데이터를 직접 추가합니다. 에디터 버튼이나 로컬 테스트에 사용합니다.
     public void AddData(string dataName, int count)
     {
         if (string.IsNullOrWhiteSpace(dataName))
             return;
 
-        receivedQueue.Enqueue(new TcpDataReceivedInfo
+        _receivedQueue.Enqueue(new TcpDataReceivedInfo
         {
             RawName = dataName,
             CanonicalName = NormalizeDataName(dataName),
@@ -271,23 +276,20 @@ public class TcpDataAggregator : MonoBehaviour
         });
     }
 
-    // 인스펙터에 입력한 기본 문자열을 현재 연결된 모든 클라이언트에게 전송합니다.
     public void SendDefaultMessageToAllClients()
     {
-        SendStringToAllClients(defaultOutgoingMessage);
+        SendStringToAllClients(_defaultOutgoingMessage);
     }
 
-    // 입력 필드가 연결되어 있으면 그 값을, 없으면 기본 문자열을 모든 클라이언트에게 전송합니다.
     public void SendCurrentMessageToAllClients()
     {
-        string message = outgoingMessageInputField != null
-            ? outgoingMessageInputField.text
-            : defaultOutgoingMessage;
+        string message = _outgoingMessageInputField != null
+            ? _outgoingMessageInputField.text
+            : _defaultOutgoingMessage;
 
         SendStringToAllClients(message);
     }
 
-    // 원하는 문자열을 현재 연결된 모든 TCP 클라이언트에게 브로드캐스트합니다.
     public void SendStringToAllClients(string message)
     {
         if (string.IsNullOrWhiteSpace(message))
@@ -297,8 +299,8 @@ public class TcpDataAggregator : MonoBehaviour
         }
 
         List<TcpClient> clientsSnapshot;
-        lock (clientLock)
-            clientsSnapshot = new List<TcpClient>(connectedClients);
+        lock (_clientLock)
+            clientsSnapshot = new List<TcpClient>(_connectedClients);
 
         if (clientsSnapshot.Count == 0)
         {
@@ -306,7 +308,7 @@ public class TcpDataAggregator : MonoBehaviour
             return;
         }
 
-        string finalMessage = appendOutgoingLineEnding
+        string finalMessage = _appendOutgoingLineEnding
             ? message + Environment.NewLine
             : message;
 
@@ -336,35 +338,33 @@ public class TcpDataAggregator : MonoBehaviour
 
         if (disconnectedClients.Count > 0)
         {
-            lock (clientLock)
+            lock (_clientLock)
             {
                 foreach (TcpClient disconnectedClient in disconnectedClients)
-                    connectedClients.Remove(disconnectedClient);
+                    _connectedClients.Remove(disconnectedClient);
 
-                connectionStatusChanged = true;
+                _connectionStatusChanged = true;
             }
         }
 
         AddRecentMessage($"[송신] {message}");
     }
 
-    // 누적된 모든 합계를 초기화하고 변경 이벤트를 발생시킵니다.
     public void ClearTotals()
     {
-        energyTotals.Clear();
+        _energyTotals.Clear();
 
-        while (receivedQueue.TryDequeue(out _))
+        while (_receivedQueue.TryDequeue(out _))
         {
         }
 
-        lock (clientLock)
-            recentMessages.Clear();
+        lock (_clientLock)
+            _recentMessages.Clear();
 
         NotifyTotalsChanged();
         NotifyDebugStateChanged();
     }
 
-    // 외부 PC 접속을 받고 클라이언트마다 처리 작업을 시작합니다.
     private async Task AcceptClientsAsync(CancellationToken token)
     {
         while (!token.IsCancellationRequested)
@@ -373,27 +373,27 @@ public class TcpDataAggregator : MonoBehaviour
 
             try
             {
-                client = await listener.AcceptTcpClientAsync();
+                client = await _listener.AcceptTcpClientAsync();
 
-                lock (clientLock)
+                lock (_clientLock)
                 {
-                    if (connectedClients.Count >= maxClientCount)
+                    if (_connectedClients.Count >= _maxClientCount)
                     {
                         client.Close();
-                        AddRecentMessage($"[경고] 클라이언트 거부 / 최대 접속 수 {maxClientCount}");
+                        AddRecentMessage($"[경고] 클라이언트 거부 / 최대 접속 수 {_maxClientCount}");
                         continue;
                     }
 
-                    connectedClients.Add(client);
-                    clientInfoByClient[client] = new ClientConnectionInfo
+                    _connectedClients.Add(client);
+                    _clientInfoByClient[client] = new ClientConnectionInfo
                     {
-                        ClientId = nextClientId++,
+                        ClientId = _nextClientId++,
                         RemoteEndPoint = client.Client.RemoteEndPoint != null
                             ? client.Client.RemoteEndPoint.ToString()
                             : "Unknown",
                         LastReceivedMessage = "-"
                     };
-                    connectionStatusChanged = true;
+                    _connectionStatusChanged = true;
                 }
 
                 _ = HandleClientAsync(client, token);
@@ -412,7 +412,6 @@ public class TcpDataAggregator : MonoBehaviour
         }
     }
 
-    // 클라이언트 한 대에서 줄 단위 메시지를 읽고 파싱된 패킷을 큐에 넣습니다.
     private async Task HandleClientAsync(TcpClient client, CancellationToken token)
     {
         string remoteEndPoint = GetClientRemoteEndPoint(client);
@@ -453,16 +452,15 @@ public class TcpDataAggregator : MonoBehaviour
         }
         finally
         {
-            lock (clientLock)
+            lock (_clientLock)
             {
-                connectedClients.Remove(client);
-                clientInfoByClient.Remove(client);
-                connectionStatusChanged = true;
+                _connectedClients.Remove(client);
+                _clientInfoByClient.Remove(client);
+                _connectionStatusChanged = true;
             }
         }
     }
 
-    // 취소 요청으로 클라이언트 읽기 루프를 멈출 수 있도록 ReadLineAsync를 감쌉니다.
     private async Task<string> ReadLineAsync(StreamReader reader, CancellationToken token)
     {
         Task<string> readTask = reader.ReadLineAsync();
@@ -475,10 +473,9 @@ public class TcpDataAggregator : MonoBehaviour
         return await readTask;
     }
 
-    // 한 줄에 여러 항목이 들어올 수 있도록 세미콜론 기준으로 나눠 처리합니다.
     private void EnqueueParsedLine(string line, string remoteEndPoint)
     {
-        if(GameManager.Instance.CurrentGameState != GameState.Playing)
+        if (GameManager.Instance.CurrentGameState != GameState.Playing)
         {
             AddRecentMessage($"[경고] 게임이 진행 중이 아닐 때 수신된 데이터 무시 / Remote: {remoteEndPoint} / Data: {line}");
             return;
@@ -493,7 +490,7 @@ public class TcpDataAggregator : MonoBehaviour
             if (TryParseEntry(entry, out string name, out int count))
             {
                 string canonicalName = NormalizeDataName(name);
-                receivedQueue.Enqueue(new TcpDataReceivedInfo
+                _receivedQueue.Enqueue(new TcpDataReceivedInfo
                 {
                     RawName = name,
                     CanonicalName = canonicalName,
@@ -510,7 +507,6 @@ public class TcpDataAggregator : MonoBehaviour
         }
     }
 
-    // A:2, A=2, A,2, A 2, A 형식의 메시지를 데이터 이름과 개수로 변환합니다.
     private bool TryParseEntry(string entry, out string name, out int count)
     {
         name = string.Empty;
@@ -533,44 +529,37 @@ public class TcpDataAggregator : MonoBehaviour
         return int.TryParse(parts[1].Trim(), NumberStyles.Integer, CultureInfo.InvariantCulture, out count);
     }
 
-    // 다른 스크립트가 총합 변경 시점을 받을 수 있도록 이벤트를 발생시킵니다.
     private void NotifyTotalsChanged()
     {
-        TotalsChanged?.Invoke(energyTotals);
+        TotalsChanged?.Invoke(_energyTotals);
     }
 
-    // 서버 상태나 디버그 표시 정보가 바뀌었을 때 갱신 이벤트를 발생시킵니다.
     private void NotifyDebugStateChanged()
     {
         DebugStateChanged?.Invoke();
     }
 
-    // 계산용으로 현재 누적 데이터를 전용 클래스 형태로 반환합니다.
     public EnergyTotals GetEnergyTotals()
     {
-        return energyTotals;
+        return _energyTotals;
     }
 
-    // 디버그 UI에서 서버 실행 여부를 확인할 수 있도록 현재 상태를 반환합니다.
     public bool IsServerRunning()
     {
-        return isServerRunning;
+        return _isServerRunning;
     }
 
-    // 디버그 UI에서 현재 리슨 포트를 표시할 수 있도록 반환합니다.
     public int GetListenPort()
     {
-        return listenPort;
+        return _listenPort;
     }
 
-    // UI나 디버그용으로 현재 연결된 클라이언트 수를 안전하게 가져옵니다.
     public int GetConnectedClientCount()
     {
-        lock (clientLock)
-            return connectedClients.Count;
+        lock (_clientLock)
+            return _connectedClients.Count;
     }
 
-    // 표준 데이터 키에 대응하는 화면 표시용 이름을 반환합니다.
     public string GetDisplayName(string dataName)
     {
         for (int i = 0; i < SupportedDataDefinitions.Length; i++)
@@ -583,7 +572,6 @@ public class TcpDataAggregator : MonoBehaviour
         return dataName;
     }
 
-    // 수신한 데이터 이름을 미리 정한 표준 키로 통일합니다.
     private string NormalizeDataName(string rawName)
     {
         if (string.IsNullOrWhiteSpace(rawName))
@@ -608,12 +596,11 @@ public class TcpDataAggregator : MonoBehaviour
         return trimmedName.ToUpperInvariant();
     }
 
-    // 연결된 클라이언트의 디버그 정보를 안전하게 복사해서 반환합니다.
     public List<string> GetClientDebugLines()
     {
-        lock (clientLock)
+        lock (_clientLock)
         {
-            List<ClientConnectionInfo> snapshot = new List<ClientConnectionInfo>(clientInfoByClient.Values);
+            List<ClientConnectionInfo> snapshot = new List<ClientConnectionInfo>(_clientInfoByClient.Values);
             snapshot.Sort((left, right) => left.ClientId.CompareTo(right.ClientId));
 
             List<string> lines = new List<string>();
@@ -624,59 +611,54 @@ public class TcpDataAggregator : MonoBehaviour
         }
     }
 
-    // 최근 수신 메시지 로그를 UI 표시용으로 복사해서 반환합니다.
     public List<string> GetRecentMessagesSnapshot()
     {
-        lock (clientLock)
-            return new List<string>(recentMessages);
+        lock (_clientLock)
+            return new List<string>(_recentMessages);
     }
 
-    // 클라이언트의 마지막 수신 메시지를 갱신합니다.
     private void UpdateClientLastMessage(TcpClient client, string message)
     {
-        lock (clientLock)
+        lock (_clientLock)
         {
-            if (!clientInfoByClient.TryGetValue(client, out ClientConnectionInfo clientInfo))
+            if (!_clientInfoByClient.TryGetValue(client, out ClientConnectionInfo clientInfo))
                 return;
 
             clientInfo.LastReceivedMessage = message;
-            clientInfoByClient[client] = clientInfo;
-            connectionStatusChanged = true;
+            _clientInfoByClient[client] = clientInfo;
+            _connectionStatusChanged = true;
         }
     }
 
-    // 최근 수신 로그를 최대 개수만 유지하면서 추가합니다.
     private void AddRecentMessage(string message)
     {
-        lock (clientLock)
+        lock (_clientLock)
         {
-            recentMessages.Enqueue(message);
+            _recentMessages.Enqueue(message);
 
-            while (recentMessages.Count > MaxRecentMessages)
-                recentMessages.Dequeue();
+            while (_recentMessages.Count > MaxRecentMessages)
+                _recentMessages.Dequeue();
 
-            connectionStatusChanged = true;
+            _connectionStatusChanged = true;
         }
     }
 
-    // 특정 클라이언트의 ID를 반환합니다.
     private int GetClientId(TcpClient client)
     {
-        lock (clientLock)
+        lock (_clientLock)
         {
-            if (clientInfoByClient.TryGetValue(client, out ClientConnectionInfo clientInfo))
+            if (_clientInfoByClient.TryGetValue(client, out ClientConnectionInfo clientInfo))
                 return clientInfo.ClientId;
         }
 
         return -1;
     }
 
-    // 특정 클라이언트의 원격 주소를 반환합니다.
     private string GetClientRemoteEndPoint(TcpClient client)
     {
-        lock (clientLock)
+        lock (_clientLock)
         {
-            if (clientInfoByClient.TryGetValue(client, out ClientConnectionInfo clientInfo))
+            if (_clientInfoByClient.TryGetValue(client, out ClientConnectionInfo clientInfo))
                 return clientInfo.RemoteEndPoint;
         }
 
@@ -685,12 +667,11 @@ public class TcpDataAggregator : MonoBehaviour
             : "Unknown";
     }
 
-    // 원격 주소 기준으로 현재 클라이언트 ID를 찾습니다.
     private int GetClientIdByRemoteEndPoint(string remoteEndPoint)
     {
-        lock (clientLock)
+        lock (_clientLock)
         {
-            foreach (ClientConnectionInfo clientInfo in clientInfoByClient.Values)
+            foreach (ClientConnectionInfo clientInfo in _clientInfoByClient.Values)
             {
                 if (clientInfo.RemoteEndPoint == remoteEndPoint)
                     return clientInfo.ClientId;

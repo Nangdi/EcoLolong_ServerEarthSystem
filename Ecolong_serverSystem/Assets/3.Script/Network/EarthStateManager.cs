@@ -1,20 +1,21 @@
 using System;
 using UnityEngine;
+using UnityEngine.Serialization;
 
 public class EarthStateManager : MonoBehaviour
 {
-    private static EarthStateManager instance;
+    private static EarthStateManager s_instance;
 
     // 다른 스크립트가 처음 접근하는 시점에 씬에서 한 번 찾아서 보완하는 lazy singleton getter입니다.
     public static EarthStateManager Instance
     {
         get
         {
-            if (instance == null)
-                instance = FindObjectOfType<EarthStateManager>();
-            return instance;
+            if (s_instance == null)
+                s_instance = FindObjectOfType<EarthStateManager>();
+            return s_instance;
         }
-        private set { instance = value; }
+        private set { s_instance = value; }
     }
 
     private const int MaxLevel = 5;
@@ -31,8 +32,6 @@ public class EarthStateManager : MonoBehaviour
     private static readonly float[] DevelopmentCarbonRateTable = { 0.1f, 0.1f, 0.15f, 0.1f, 0.05f };
 
     // [행, 열] = [친환경도, 발전도] 로 읽는 5x5 상태표입니다.
-    // 예를 들어 친환경도 5, 발전도 1이면 "자연낙원",
-    // 친환경도 1, 발전도 5이면 "붕괴직전 사회"가 됩니다.
     private static readonly string[,] StateNameTable =
     {
         { "생태붕괴", "환경 재난사회", "공해사회", "디스토피아", "붕괴직전 사회" },
@@ -43,33 +42,38 @@ public class EarthStateManager : MonoBehaviour
     };
 
     [Header("TCP 연결")]
-    [SerializeField] private TcpDataAggregator aggregator;
+    [FormerlySerializedAs("aggregator")]
+    [SerializeField] private TcpDataAggregator _aggregator;
 
     [Header("친환경도 보정")]
     [Range(-1, 1)]
-    [SerializeField] private int softwareEcoOffset;
+    [FormerlySerializedAs("softwareEcoOffset")]
+    [SerializeField] private int _softwareEcoOffset;
 
     [Header("게임 연동")]
-    [SerializeField] private bool resetAggregatorOnGameStart = true;
-    [SerializeField] private bool freezeStateWhenGameEnds = true;
+    [FormerlySerializedAs("resetAggregatorOnGameStart")]
+    [SerializeField] private bool _resetAggregatorOnGameStart = true;
+    [FormerlySerializedAs("freezeStateWhenGameEnds")]
+    [SerializeField] private bool _freezeStateWhenGameEnds = true;
 
     [Header("기후 계산 상수")]
-    [SerializeField] private float carbonTokenRate = 0.001f;
-    [SerializeField] private float arcticIceFactor = 35f;
-    [SerializeField] private float seaLevelFactor = 0.25f;
+    [FormerlySerializedAs("carbonTokenRate")]
+    [SerializeField] private float _carbonTokenRate = 0.001f;
+    [FormerlySerializedAs("arcticIceFactor")]
+    [SerializeField] private float _arcticIceFactor = 35f;
+    [FormerlySerializedAs("seaLevelFactor")]
+    [SerializeField] private float _seaLevelFactor = 0.25f;
 
     // 현재 계산 결과를 항상 들고 있는 런타임 스냅샷입니다.
-    // 다른 스크립트는 이 값을 읽거나 StateChanged 이벤트를 구독해서 사용하면 됩니다.
-    private readonly EarthStateSnapshot currentState = new EarthStateSnapshot();
+    private readonly EarthStateSnapshot _currentState = new EarthStateSnapshot();
 
-    // 상태가 실제로 바뀌었을 때만 외부로 알려주는 이벤트입니다.
     public event Action<EarthStateSnapshot> StateChanged;
 
-    public EarthStateSnapshot CurrentState => currentState;
+    public EarthStateSnapshot CurrentState => _currentState;
 
-    private bool isStateTrackingActive = true;
-    private bool isSubscribedToGameEvents;
-    private GameState lastObservedGameState = GameState.Ready;
+    private bool _isStateTrackingActive = true;
+    private bool _isSubscribedToGameEvents;
+    private GameState _lastObservedGameState = GameState.Ready;
 
     private void Awake()
     {
@@ -81,11 +85,11 @@ public class EarthStateManager : MonoBehaviour
 
         Instance = this;
 
-        if (aggregator == null)
-            aggregator = TcpDataAggregator.Instance;
+        if (_aggregator == null)
+            _aggregator = TcpDataAggregator.Instance;
 
         if (GameManager.Instance != null)
-            lastObservedGameState = GameManager.Instance.CurrentGameState;
+            _lastObservedGameState = GameManager.Instance.CurrentGameState;
     }
 
     private void OnDestroy()
@@ -96,11 +100,8 @@ public class EarthStateManager : MonoBehaviour
 
     private void OnEnable()
     {
-        // TCP 집계기 값이 바뀔 때마다 지구 상태도 다시 계산되도록 연결합니다.
         SubscribeAggregator();
         TrySubscribeGameEvents();
-
-        // 씬 활성화 직후에도 현재 누적값 기준으로 한 번 계산합니다.
         RefreshState();
     }
 
@@ -112,11 +113,10 @@ public class EarthStateManager : MonoBehaviour
 
     private void OnValidate()
     {
-        // 인스펙터에서 보정값을 바꿨을 때 현재 단계가 바로 다시 계산되도록 합니다.
-        softwareEcoOffset = Mathf.Clamp(softwareEcoOffset, -1, 1);
-        carbonTokenRate = Mathf.Max(0f, carbonTokenRate);
-        arcticIceFactor = Mathf.Max(0f, arcticIceFactor);
-        seaLevelFactor = Mathf.Max(0f, seaLevelFactor);
+        _softwareEcoOffset = Mathf.Clamp(_softwareEcoOffset, -1, 1);
+        _carbonTokenRate = Mathf.Max(0f, _carbonTokenRate);
+        _arcticIceFactor = Mathf.Max(0f, _arcticIceFactor);
+        _seaLevelFactor = Mathf.Max(0f, _seaLevelFactor);
         RefreshState();
     }
 
@@ -125,62 +125,54 @@ public class EarthStateManager : MonoBehaviour
         TrySubscribeGameEvents();
         SyncTrackingStateWithGame();
 
-        // 플레이 중에는 시간에 따라 탄소농도와 파생 지표가 계속 변하므로
-        // 매 프레임 현재 단계 기준으로 다시 계산합니다.
-        if (Application.isPlaying && isStateTrackingActive)
+        if (Application.isPlaying && _isStateTrackingActive)
             RefreshState(Time.deltaTime);
     }
 
     public void SetAggregator(TcpDataAggregator targetAggregator)
     {
-        if (aggregator == targetAggregator)
+        if (_aggregator == targetAggregator)
             return;
 
-        // 집계기를 교체할 수 있게 열어둔 메서드입니다.
-        // 예: 테스트용 aggregator와 실사용 aggregator를 런타임에 바꿔 끼울 때 사용.
         UnsubscribeAggregator();
-        aggregator = targetAggregator;
+        _aggregator = targetAggregator;
         SubscribeAggregator();
         RefreshState();
     }
 
-    // 게임 시작 시 지구 상태 계산을 새 게임 기준으로 초기화합니다.
     public void InitializeForGameStart()
     {
-        isStateTrackingActive = true;
-        lastObservedGameState = GameState.Playing;
+        _isStateTrackingActive = true;
+        _lastObservedGameState = GameState.Playing;
 
-        if (aggregator == null)
-            aggregator = TcpDataAggregator.Instance;
+        if (_aggregator == null)
+            _aggregator = TcpDataAggregator.Instance;
 
-        if (resetAggregatorOnGameStart && aggregator != null)
-            aggregator.ClearTotals();
+        if (_resetAggregatorOnGameStart && _aggregator != null)
+            _aggregator.ClearTotals();
 
-        currentState.ResetToDefaults();
+        _currentState.ResetToDefaults();
         RefreshState();
     }
 
-    // 게임 종료 후에는 현재 상태가 더 이상 변하지 않도록 계산을 멈춥니다.
     public void FreezeState()
     {
-        if (!freezeStateWhenGameEnds)
+        if (!_freezeStateWhenGameEnds)
             return;
 
-        isStateTrackingActive = false;
+        _isStateTrackingActive = false;
 
         if (GameManager.Instance != null)
-            lastObservedGameState = GameManager.Instance.CurrentGameState;
+            _lastObservedGameState = GameManager.Instance.CurrentGameState;
     }
 
     public void SetSoftwareEcoOffset(int offset)
     {
         int clampedOffset = Mathf.Clamp(offset, -1, 1);
-        if (softwareEcoOffset == clampedOffset)
+        if (_softwareEcoOffset == clampedOffset)
             return;
 
-        // 기획서의 "SW 가중치 ±1단계"를 코드로 반영하는 부분입니다.
-        // 계산 결과가 1보다 작거나 5보다 커지지 않도록 먼저 -1~1로 제한합니다.
-        softwareEcoOffset = clampedOffset;
+        _softwareEcoOffset = clampedOffset;
         RefreshState();
     }
 
@@ -190,42 +182,34 @@ public class EarthStateManager : MonoBehaviour
         RefreshState(0f);
     }
 
-    // 단계, 탄소농도, 온도, 북극얼음, 해수면을 한 번에 다시 계산합니다.
     public void RefreshState(float deltaTime)
     {
-        // inspector 연결이 비어 있어도 동작하도록 런타임에서 한 번 더 탐색합니다.
-        if (aggregator == null)
-            aggregator = TcpDataAggregator.Instance;
+        if (_aggregator == null)
+            _aggregator = TcpDataAggregator.Instance;
 
-        // TCP 집계기의 누적 탄소/발전 값을 읽습니다.
-        EnergyTotals totals = aggregator != null ? aggregator.GetEnergyTotals() : null;
+        EnergyTotals totals = _aggregator != null ? _aggregator.GetEnergyTotals() : null;
         int carbonCount = totals != null ? totals.totalCarbon : 0;
         int powerGenerationCount = totals != null ? totals.powerGeneration : 0;
         int electricCount = totals != null ? totals.electricCount : 0;
         int currentCarbon = totals != null ? totals.totalCarbon - totals.captureCarbon : 0;
         int currentPowerGeneration = totals != null ? totals.currentPowerGeneration : 0;
 
-        // count -> 단계 변환.
-        // 탄소가 많을수록 친환경도는 내려가고,
-        // 발전량이 많을수록 발전도는 올라갑니다.
-        int ecoLevel = CalculateEcoLevel(carbonCount, softwareEcoOffset);
+        int ecoLevel = CalculateEcoLevel(carbonCount, _softwareEcoOffset);
         int developmentLevel = CalculateDevelopmentLevel(powerGenerationCount);
         string stateName = GetStateName(ecoLevel, developmentLevel);
         float carbonRatePerSecond = CalculateCarbonPpmChangePerSecond(ecoLevel, developmentLevel, carbonCount);
 
-        // 플레이 중에는 초당 변화량을 누적하고, 에디터 정지 상태에서는 현재 저장값을 유지합니다.
-        float nextCarbonPpm = currentState.CarbonPpm;
+        float nextCarbonPpm = _currentState.CarbonPpm;
         if (!Application.isPlaying)
-            nextCarbonPpm = Mathf.Max(PreIndustrialCarbonPpm, currentState.CarbonPpm);
+            nextCarbonPpm = Mathf.Max(PreIndustrialCarbonPpm, _currentState.CarbonPpm);
         else
-            nextCarbonPpm = Mathf.Max(PreIndustrialCarbonPpm, currentState.CarbonPpm + carbonRatePerSecond * Mathf.Max(0f, deltaTime));
+            nextCarbonPpm = Mathf.Max(PreIndustrialCarbonPpm, _currentState.CarbonPpm + carbonRatePerSecond * Mathf.Max(0f, deltaTime));
 
         float temperatureDeltaC = CalculateTemperatureDelta(nextCarbonPpm);
         float arcticIcePercent = CalculateArcticIcePercent(temperatureDeltaC);
         float seaLevelRiseMeters = CalculateSeaLevelRiseMeters(temperatureDeltaC);
 
-        // SetValues가 비교+적용을 모두 수행하고, 실제로 바뀐 경우에만 true를 반환합니다.
-        bool hasChanged = currentState.SetValues(
+        bool hasChanged = _currentState.SetValues(
             carbonCount,
             powerGenerationCount,
             electricCount,
@@ -233,7 +217,7 @@ public class EarthStateManager : MonoBehaviour
             currentPowerGeneration,
             ecoLevel,
             developmentLevel,
-            softwareEcoOffset,
+            _softwareEcoOffset,
             stateName,
             nextCarbonPpm,
             carbonRatePerSecond,
@@ -242,18 +226,11 @@ public class EarthStateManager : MonoBehaviour
             seaLevelRiseMeters);
 
         if (hasChanged)
-            StateChanged?.Invoke(currentState);
+            StateChanged?.Invoke(_currentState);
     }
 
     public static int CalculateEcoLevel(int carbonCount, int ecoOffset = 0)
     {
-        // 사진 기준:
-        // 5단계 = 0~14
-        // 4단계 = 15~34
-        // 3단계 = 35~54
-        // 2단계 = 55~79
-        // 1단계 = 80 이상
-        // 이후 SW 보정값(-1~+1)을 더하고, 최종값은 1~5 범위로 고정합니다.
         int baseLevel;
 
         if (carbonCount >= 80)
@@ -272,12 +249,6 @@ public class EarthStateManager : MonoBehaviour
 
     public static int CalculateDevelopmentLevel(int powerGenerationCount)
     {
-        // 사진 기준:
-        // 1단계 = 0~159
-        // 2단계 = 160~219
-        // 3단계 = 220~279
-        // 4단계 = 280~339
-        // 5단계 = 340 이상
         if (powerGenerationCount >= 340)
             return 5;
         if (powerGenerationCount >= 280)
@@ -294,7 +265,7 @@ public class EarthStateManager : MonoBehaviour
     {
         float ecoRate = EcoCarbonRateTable[Mathf.Clamp(ecoLevel, MinLevel, MaxLevel) - 1];
         float developmentRate = DevelopmentCarbonRateTable[Mathf.Clamp(developmentLevel, MinLevel, MaxLevel) - 1];
-        float carbonTokenContribution = carbonTokenCount * carbonTokenRate;
+        float carbonTokenContribution = carbonTokenCount * _carbonTokenRate;
         return ecoRate + developmentRate + carbonTokenContribution;
     }
 
@@ -306,17 +277,16 @@ public class EarthStateManager : MonoBehaviour
 
     public float CalculateArcticIcePercent(float temperatureDeltaC)
     {
-        return Mathf.Clamp(100f - arcticIceFactor * temperatureDeltaC, 0f, 100f);
+        return Mathf.Clamp(100f - _arcticIceFactor * temperatureDeltaC, 0f, 100f);
     }
 
     public float CalculateSeaLevelRiseMeters(float temperatureDeltaC)
     {
-        return Mathf.Max(0f, seaLevelFactor * temperatureDeltaC);
+        return Mathf.Max(0f, _seaLevelFactor * temperatureDeltaC);
     }
 
     public static string GetStateName(int ecoLevel, int developmentLevel)
     {
-        // 단계는 1부터 시작하지만 배열 인덱스는 0부터 시작하므로 -1 해서 맞춥니다.
         int ecoIndex = Mathf.Clamp(ecoLevel, MinLevel, MaxLevel) - 1;
         int developmentIndex = Mathf.Clamp(developmentLevel, MinLevel, MaxLevel) - 1;
         return StateNameTable[ecoIndex, developmentIndex];
@@ -324,42 +294,40 @@ public class EarthStateManager : MonoBehaviour
 
     private void SubscribeAggregator()
     {
-        if (aggregator == null)
+        if (_aggregator == null)
             return;
 
-        // TCP 누적합이 바뀔 때마다 OnTotalsChanged -> RefreshState 흐름으로 이어집니다.
-        aggregator.TotalsChanged += OnTotalsChanged;
+        _aggregator.TotalsChanged += OnTotalsChanged;
     }
 
     private void UnsubscribeAggregator()
     {
-        if (aggregator == null)
+        if (_aggregator == null)
             return;
 
-        // 씬 비활성화/교체 시 중복 구독을 막기 위해 반드시 해제합니다.
-        aggregator.TotalsChanged -= OnTotalsChanged;
+        _aggregator.TotalsChanged -= OnTotalsChanged;
     }
 
     private void TrySubscribeGameEvents()
     {
-        if (isSubscribedToGameEvents || GameManager.Instance == null)
+        if (_isSubscribedToGameEvents || GameManager.Instance == null)
             return;
 
         GameManager.Instance.OnGameStart += OnGameStart;
         GameManager.Instance.OnGameEnd += OnGameEnd;
-        isStateTrackingActive = GameManager.Instance.CurrentGameState == GameState.Playing;
-        lastObservedGameState = GameManager.Instance.CurrentGameState;
-        isSubscribedToGameEvents = true;
+        _isStateTrackingActive = GameManager.Instance.CurrentGameState == GameState.Playing;
+        _lastObservedGameState = GameManager.Instance.CurrentGameState;
+        _isSubscribedToGameEvents = true;
     }
 
     private void UnsubscribeGameEvents()
     {
-        if (!isSubscribedToGameEvents || GameManager.Instance == null)
+        if (!_isSubscribedToGameEvents || GameManager.Instance == null)
             return;
 
         GameManager.Instance.OnGameStart -= OnGameStart;
         GameManager.Instance.OnGameEnd -= OnGameEnd;
-        isSubscribedToGameEvents = false;
+        _isSubscribedToGameEvents = false;
     }
 
     private void SyncTrackingStateWithGame()
@@ -368,7 +336,7 @@ public class EarthStateManager : MonoBehaviour
             return;
 
         GameState currentGameState = GameManager.Instance.CurrentGameState;
-        if (currentGameState == lastObservedGameState)
+        if (currentGameState == _lastObservedGameState)
             return;
 
         if (currentGameState == GameState.Playing)
@@ -376,14 +344,12 @@ public class EarthStateManager : MonoBehaviour
         else
             FreezeState();
 
-        lastObservedGameState = currentGameState;
+        _lastObservedGameState = currentGameState;
     }
 
     private void OnTotalsChanged(EnergyTotals totals)
     {
-        // 이벤트에서 totals를 바로 계산에 써도 되지만,
-        // 계산 진입점을 RefreshState 하나로 모아두면 유지보수가 쉬워집니다.
-        if (!isStateTrackingActive && Application.isPlaying)
+        if (!_isStateTrackingActive && Application.isPlaying)
             return;
 
         RefreshState();

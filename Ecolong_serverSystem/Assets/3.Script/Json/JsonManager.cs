@@ -26,11 +26,11 @@ public class JsonManager : MonoBehaviour
     public PortJson portJson = new PortJson();
     public GameDynamicData gameDynamicData = new GameDynamicData();
 
-    private string gameDataPath;
-    private string gameDynamicDataPath;
-    private string portPath;
+    private string _gameDataPath;
+    private string _gameDynamicDataPath;
+    private string _portPath;
 
-    public string GameDataPath => gameDataPath;
+    public string GameDataPath => _gameDataPath;
 
     // 싱글톤을 초기화하고 JSON 파일에서 런타임 설정 데이터를 불러옵니다.
     private void Awake()
@@ -46,23 +46,23 @@ public class JsonManager : MonoBehaviour
             return;
         }
 
-        portPath = Path.Combine(Application.streamingAssetsPath, "port.json");
-        gameDynamicDataPath = Path.Combine(Application.streamingAssetsPath, "Setting.json");
-        gameDataPath = Path.Combine(Application.persistentDataPath, "gameSettingData.json");
+        _portPath = Path.Combine(Application.streamingAssetsPath, "port.json");
+        _gameDynamicDataPath = Path.Combine(Application.streamingAssetsPath, "Setting.json");
+        _gameDataPath = Path.Combine(Application.persistentDataPath, "gameSettingData.json");
 
         gameSettingData ??= new GameSettingData();
         gameDynamicData ??= new GameDynamicData();
         portJson ??= new PortJson();
 
-        gameSettingData = LoadData(gameDataPath, gameSettingData);
-        gameDynamicData = LoadData(gameDynamicDataPath, gameDynamicData);
-        portJson = LoadData(portPath, portJson);
+        gameSettingData = LoadData(_gameDataPath, gameSettingData);
+        gameDynamicData = LoadData(_gameDynamicDataPath, gameDynamicData);
+        portJson = LoadData(_portPath, portJson);
     }
 
     // 현재 게임 설정 데이터를 gameSettingData.json 파일에 저장합니다.
     public void SaveGameSettingData()
     {
-        SaveData(gameSettingData, gameDataPath);
+        SaveData(gameSettingData, _gameDataPath);
     }
 
     // 지정한 경로에 JSON 파일을 생성하거나 덮어씁니다.

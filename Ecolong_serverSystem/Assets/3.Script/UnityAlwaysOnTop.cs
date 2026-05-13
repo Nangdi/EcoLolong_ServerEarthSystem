@@ -1,6 +1,7 @@
-﻿using System;
+using System;
 using System.Runtime.InteropServices;
 using UnityEngine;
+using UnityEngine.Serialization;
 
 public class UnityAlwaysOnTop : MonoBehaviour
 {
@@ -16,9 +17,12 @@ public class UnityAlwaysOnTop : MonoBehaviour
     private const UInt32 SWP_NOMOVE = 0x0002;
     private const UInt32 TOPMOST_FLAGS = SWP_NOMOVE | SWP_NOSIZE;
 
-    [SerializeField] private Camera cam1;
-    [SerializeField] private Camera cam2;
-    [SerializeField] private Camera cam3;
+    [FormerlySerializedAs("cam1")]
+    [SerializeField] private Camera _cam1;
+    [FormerlySerializedAs("cam2")]
+    [SerializeField] private Camera _cam2;
+    [FormerlySerializedAs("cam3")]
+    [SerializeField] private Camera _cam3;
 
     void Start()
     {

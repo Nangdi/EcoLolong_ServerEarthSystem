@@ -1,14 +1,18 @@
 using TMPro;
 using UnityEngine;
+using UnityEngine.Serialization;
 using UnityEngine.UI;
 
 [RequireComponent(typeof(DualMonitorSpanController))]
 public class DualMonitorSpanTest : MonoBehaviour
 {
     [Header("테스트 UI 색상")]
-    [SerializeField] private Color leftPanelColor = new Color(0.12f, 0.22f, 0.45f, 1f);
-    [SerializeField] private Color rightPanelColor = new Color(0.2f, 0.42f, 0.18f, 1f);
-    [SerializeField] private Color centerLineColor = new Color(1f, 0.85f, 0.2f, 1f);
+    [FormerlySerializedAs("leftPanelColor")]
+    [SerializeField] private Color _leftPanelColor = new Color(0.12f, 0.22f, 0.45f, 1f);
+    [FormerlySerializedAs("rightPanelColor")]
+    [SerializeField] private Color _rightPanelColor = new Color(0.2f, 0.42f, 0.18f, 1f);
+    [FormerlySerializedAs("centerLineColor")]
+    [SerializeField] private Color _centerLineColor = new Color(1f, 0.85f, 0.2f, 1f);
 
     // 테스트 씬이 열리면 좌우 화면 구분용 UI를 자동으로 구성합니다.
     private void Awake()
@@ -25,9 +29,9 @@ public class DualMonitorSpanTest : MonoBehaviour
         Canvas canvas = CreateCanvas();
         TMP_FontAsset font = Resources.Load<TMP_FontAsset>("Fonts/NotoSansKR-Regular SDF");
 
-        CreatePanel("LeftPanel", canvas.transform, new Vector2(0f, 0f), new Vector2(0.5f, 1f), leftPanelColor);
-        CreatePanel("RightPanel", canvas.transform, new Vector2(0.5f, 0f), new Vector2(1f, 1f), rightPanelColor);
-        CreatePanel("CenterLine", canvas.transform, new Vector2(0.499f, 0f), new Vector2(0.501f, 1f), centerLineColor);
+        CreatePanel("LeftPanel", canvas.transform, new Vector2(0f, 0f), new Vector2(0.5f, 1f), _leftPanelColor);
+        CreatePanel("RightPanel", canvas.transform, new Vector2(0.5f, 0f), new Vector2(1f, 1f), _rightPanelColor);
+        CreatePanel("CenterLine", canvas.transform, new Vector2(0.499f, 0f), new Vector2(0.501f, 1f), _centerLineColor);
 
         CreateText("LeftLabel", canvas.transform, new Vector2(0.25f, 0.5f), "LEFT DISPLAY\n1920 x 1080", font, 64f);
         CreateText("RightLabel", canvas.transform, new Vector2(0.75f, 0.5f), "RIGHT DISPLAY\n1920 x 1080", font, 64f);

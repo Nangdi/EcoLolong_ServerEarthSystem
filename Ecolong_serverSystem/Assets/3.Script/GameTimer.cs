@@ -1,27 +1,30 @@
 using System;
 using UnityEngine;
+using UnityEngine.Serialization;
 
 public class GameTimer : MonoBehaviour
 {
-    private static GameTimer instance;
+    private static GameTimer s_instance;
 
     // 다른 스크립트가 처음 접근하는 시점에 씬에서 한 번 찾아서 보완하는 lazy singleton getter입니다.
     public static GameTimer Instance
     {
         get
         {
-            if (instance == null)
-                instance = FindObjectOfType<GameTimer>();
+            if (s_instance == null)
+                s_instance = FindObjectOfType<GameTimer>();
 
-            return instance;
+            return s_instance;
         }
         private set
         {
-            instance = value;
+            s_instance = value;
         }
     }
     public bool IsRunning { get; private set; }
-    [SerializeField] private float currentTime;
+
+    [FormerlySerializedAs("currentTime")]
+    [SerializeField] private float _currentTime;
 
     [Header("Time Range")]
     public float gameTime = 900f; // 15분 = 900초
@@ -30,8 +33,8 @@ public class GameTimer : MonoBehaviour
     public bool isRePlay = false;
     public float CurrentTime
     {
-        get { return currentTime; }
-        private set { currentTime = value; }
+        get { return _currentTime; }
+        private set { _currentTime = value; }
     }
 
     public event Action<float> OnTimeChanged;
@@ -64,7 +67,7 @@ public class GameTimer : MonoBehaviour
         if (!IsRunning) return;
 
         CurrentTime += Time.deltaTime * settingGameScale;
-        OnTimeChanged?.Invoke(currentTime);
+        OnTimeChanged?.Invoke(_currentTime);
 
 
         if (CurrentTime >= targetTime)
@@ -83,7 +86,7 @@ public class GameTimer : MonoBehaviour
             }
             //게임매니저에 게임종료 알림
             Debug.Log("Time Over!");
-            currentTime = 0;
+            _currentTime = 0;
             OnTimeOver?.Invoke();
         }
     }
@@ -120,7 +123,7 @@ public class GameTimer : MonoBehaviour
     public void ResetTimer()
     {
         CurrentTime = 0f;
-        OnTimeChanged?.Invoke(currentTime);
+        OnTimeChanged?.Invoke(_currentTime);
     }
     public void SetGameTime(float time)
     {

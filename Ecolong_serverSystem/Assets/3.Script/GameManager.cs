@@ -1,6 +1,7 @@
 using System.Collections;
 using System.Collections.Generic;
 using UnityEngine;
+using UnityEngine.Serialization;
 using System;
 public enum GameState
 {
@@ -10,21 +11,21 @@ public enum GameState
 }
 public class GameManager : MonoBehaviour
 {
-    private static GameManager instance;
+    private static GameManager s_instance;
 
     // 다른 스크립트가 처음 접근하는 시점에 씬에서 한 번 찾아서 보완하는 lazy singleton getter입니다.
     public static GameManager Instance
     {
         get
         {
-            if (instance == null)
-                instance = FindObjectOfType<GameManager>();
+            if (s_instance == null)
+                s_instance = FindObjectOfType<GameManager>();
 
-            return instance;
+            return s_instance;
         }
         private set
         {
-            instance = value;
+            s_instance = value;
         }
     }
     public event Action OnGameStart; // 게임 시작 이벤트
@@ -37,8 +38,10 @@ public class GameManager : MonoBehaviour
     public TcpDataAggregator tcpDataAggregator ; // TCP 데이터 집계기 참조
 
     [Header("Replay")]
-    [SerializeField] private KeyCode replayKey = KeyCode.R;
-    [SerializeField] private float replayTimerSpeed = 15f;
+    [FormerlySerializedAs("replayKey")]
+    [SerializeField] private KeyCode _replayKey = KeyCode.R;
+    [FormerlySerializedAs("replayTimerSpeed")]
+    [SerializeField] private float _replayTimerSpeed = 15f;
     private void Awake()
     {
         if (Instance != null && Instance != this)
@@ -89,7 +92,7 @@ public class GameManager : MonoBehaviour
             GameManager_OnGameStart(); // 게임 시작 이벤트 호출
         }
 
-        if (Input.GetKeyDown(replayKey))
+        if (Input.GetKeyDown(_replayKey))
             TriggerReplay();
         //if(Input.GetKeyDown(KeyCode.E) && CurrentGameState.Equals(GameState.Playing))
         //{
@@ -109,7 +112,7 @@ public class GameManager : MonoBehaviour
         Time.timeScale = 1f;
         GameTimer.Instance.isRePlay = true;
         GameTimer.Instance.StartTimer();
-        GameTimer.Instance.SetTimerSpeed(replayTimerSpeed);
+        GameTimer.Instance.SetTimerSpeed(_replayTimerSpeed);
         OnReplay?.Invoke();
     }
     public void SetGameState(GameState newState)

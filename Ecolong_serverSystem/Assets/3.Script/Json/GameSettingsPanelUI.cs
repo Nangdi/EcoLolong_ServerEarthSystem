@@ -4,24 +4,29 @@ using System.Globalization;
 using System.Reflection;
 using TMPro;
 using UnityEngine;
+using UnityEngine.Serialization;
 using UnityEngine.UI;
 
 public class GameSettingsPanelUI : MonoBehaviour
 {
     [Header("References")]
-    [SerializeField] private Transform settingPanel;
-    [SerializeField] private TextMeshProUGUI textTemplate;
-    [SerializeField] private TMP_InputField inputFieldTemplate;
-    [SerializeField] private Button saveButton;
+    [FormerlySerializedAs("settingPanel")]
+    [SerializeField] private Transform _settingPanel;
+    [FormerlySerializedAs("textTemplate")]
+    [SerializeField] private TextMeshProUGUI _textTemplate;
+    [FormerlySerializedAs("inputFieldTemplate")]
+    [SerializeField] private TMP_InputField _inputFieldTemplate;
+    [FormerlySerializedAs("saveButton")]
+    [SerializeField] private Button _saveButton;
 
-    private JsonManager jsonManager;
+    private JsonManager _jsonManager;
 
     // JsonManager를 찾고 현재 게임 설정값으로 UI 행을 생성합니다.
     private void Start()
     {
-        jsonManager = JsonManager.instance != null ? JsonManager.instance : FindObjectOfType<JsonManager>();
+        _jsonManager = JsonManager.instance != null ? JsonManager.instance : FindObjectOfType<JsonManager>();
 
-        if (jsonManager == null)
+        if (_jsonManager == null)
         {
             Debug.LogError("JsonManager not found in the scene.");
             return;
@@ -29,36 +34,36 @@ public class GameSettingsPanelUI : MonoBehaviour
 
         BuildSettingRows();
 
-        if (saveButton != null)
-            saveButton.onClick.AddListener(SaveSettings);
+        if (_saveButton != null)
+            _saveButton.onClick.AddListener(SaveSettings);
     }
 
     // Save 버튼 이벤트가 중복으로 남지 않도록 해제합니다.
     private void OnDestroy()
     {
-        if (saveButton != null)
-            saveButton.onClick.RemoveListener(SaveSettings);
+        if (_saveButton != null)
+            _saveButton.onClick.RemoveListener(SaveSettings);
     }
 
     // GameSettingData의 public 필드를 Text + InputField 행으로 자동 생성합니다.
     private void BuildSettingRows()
     {
-        if (settingPanel == null || textTemplate == null || inputFieldTemplate == null)
+        if (_settingPanel == null || _textTemplate == null || _inputFieldTemplate == null)
         {
             Debug.LogError("GameSettingsPanelUI has missing references.");
             return;
         }
 
-        GameSettingData settings = jsonManager.gameSettingData;
+        GameSettingData settings = _jsonManager.gameSettingData;
         FieldInfo[] fields = typeof(GameSettingData).GetFields(BindingFlags.Instance | BindingFlags.Public);
 
-        textTemplate.gameObject.SetActive(false);
-        inputFieldTemplate.gameObject.SetActive(false);
+        _textTemplate.gameObject.SetActive(false);
+        _inputFieldTemplate.gameObject.SetActive(false);
 
         foreach (FieldInfo field in fields)
         {
             GameObject row = new GameObject($"{field.Name}_Row", typeof(RectTransform), typeof(HorizontalLayoutGroup));
-            row.transform.SetParent(settingPanel, false);
+            row.transform.SetParent(_settingPanel, false);
 
             HorizontalLayoutGroup rowLayout = row.GetComponent<HorizontalLayoutGroup>();
             rowLayout.childControlWidth = true;
@@ -66,12 +71,12 @@ public class GameSettingsPanelUI : MonoBehaviour
             rowLayout.childForceExpandWidth = false;
             rowLayout.spacing = 20f;
 
-            TextMeshProUGUI label = Instantiate(textTemplate, row.transform);
+            TextMeshProUGUI label = Instantiate(_textTemplate, row.transform);
             label.name = $"Text_{field.Name}";
             label.text = field.Name;
             label.gameObject.SetActive(true);
 
-            TMP_InputField input = Instantiate(inputFieldTemplate, row.transform);
+            TMP_InputField input = Instantiate(_inputFieldTemplate, row.transform);
             input.name = $"InputField_{field.Name}";
             input.text = ValueToString(field.GetValue(settings));
             input.gameObject.SetActive(true);
@@ -81,10 +86,10 @@ public class GameSettingsPanelUI : MonoBehaviour
     // InputField에 입력된 값을 GameSettingData에 반영하고 JSON으로 저장합니다.
     private void SaveSettings()
     {
-        if (jsonManager == null || jsonManager.gameSettingData == null)
+        if (_jsonManager == null || _jsonManager.gameSettingData == null)
             return;
 
-        TMP_InputField[] inputs = settingPanel.GetComponentsInChildren<TMP_InputField>(true);
+        TMP_InputField[] inputs = _settingPanel.GetComponentsInChildren<TMP_InputField>(true);
 
         foreach (TMP_InputField input in inputs)
         {
@@ -99,7 +104,7 @@ public class GameSettingsPanelUI : MonoBehaviour
 
             if (TryParseValue(input.text, field.FieldType, out object parsedValue))
             {
-                field.SetValue(jsonManager.gameSettingData, parsedValue);
+                field.SetValue(_jsonManager.gameSettingData, parsedValue);
             }
             else
             {
@@ -107,8 +112,8 @@ public class GameSettingsPanelUI : MonoBehaviour
             }
         }
 
-        jsonManager.SaveGameSettingData();
-        Debug.Log($"Game setting data saved: {jsonManager.GameDataPath}");
+        _jsonManager.SaveGameSettingData();
+        Debug.Log($"Game setting data saved: {_jsonManager.GameDataPath}");
     }
 
     // 배열 값은 콤마로 이어 붙이고, 일반 값은 문자열로 변환합니다.

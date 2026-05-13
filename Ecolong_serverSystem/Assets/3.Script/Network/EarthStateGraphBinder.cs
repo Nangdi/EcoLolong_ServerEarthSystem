@@ -4,35 +4,38 @@ using UnityEngine.Serialization;
 public class EarthStateGraphBinder : MonoBehaviour
 {
     [Header("상태 연결")]
-    [SerializeField] private EarthStateManager earthStateManager;
+    [FormerlySerializedAs("earthStateManager")]
+    [SerializeField] private EarthStateManager _earthStateManager;
 
     [Header("그래프 연결")]
-    [SerializeField] private ResourceGraphs carbonPpmGraph;
-    [SerializeField] private ResourceGraphs temperatureGraph;
-    [FormerlySerializedAs("CarbornGraph"), FormerlySerializedAs("CarbonGraph")]
-    [SerializeField] private ResourceGraphs carbonGraph;
-    [FormerlySerializedAs("ElectricityGraph")]
-    [SerializeField] private ResourceGraphs electricityGraph;
-    [FormerlySerializedAs("PowerGenerationGraph")]
-    [SerializeField] private ResourceGraphs powerGenerationGraph;
+    [FormerlySerializedAs("carbonPpmGraph")]
+    [SerializeField] private ResourceGraphs _carbonPpmGraph;
+    [FormerlySerializedAs("temperatureGraph")]
+    [SerializeField] private ResourceGraphs _temperatureGraph;
+    [FormerlySerializedAs("CarbornGraph"), FormerlySerializedAs("CarbonGraph"), FormerlySerializedAs("carbonGraph")]
+    [SerializeField] private ResourceGraphs _carbonGraph;
+    [FormerlySerializedAs("ElectricityGraph"), FormerlySerializedAs("electricityGraph")]
+    [SerializeField] private ResourceGraphs _electricityGraph;
+    [FormerlySerializedAs("PowerGenerationGraph"), FormerlySerializedAs("powerGenerationGraph")]
+    [SerializeField] private ResourceGraphs _powerGenerationGraph;
 
-    private int lastRecordedSecond = -1;
+    private int _lastRecordedSecond = -1;
 
     // 인스펙터 연결이 비어 있어도 런타임에서 자동으로 상태 매니저를 찾습니다.
     private void Awake()
     {
-        if (earthStateManager == null)
-            earthStateManager = EarthStateManager.Instance;
+        if (_earthStateManager == null)
+            _earthStateManager = EarthStateManager.Instance;
     }
 
     // 지구 상태가 바뀔 때마다 탄소농도와 온도를 그래프에 기록하도록 연결합니다.
     private void OnEnable()
     {
-        if (earthStateManager == null)
-            earthStateManager = EarthStateManager.Instance;
+        if (_earthStateManager == null)
+            _earthStateManager = EarthStateManager.Instance;
 
-        if (earthStateManager != null)
-            earthStateManager.StateChanged += OnEarthStateChanged;
+        if (_earthStateManager != null)
+            _earthStateManager.StateChanged += OnEarthStateChanged;
 
         if (GameManager.Instance != null)
             GameManager.Instance.OnGameStart += OnGameStart;
@@ -41,8 +44,8 @@ public class EarthStateGraphBinder : MonoBehaviour
     // 오브젝트가 비활성화될 때 이벤트 연결을 정리합니다.
     private void OnDisable()
     {
-        if (earthStateManager != null)
-            earthStateManager.StateChanged -= OnEarthStateChanged;
+        if (_earthStateManager != null)
+            _earthStateManager.StateChanged -= OnEarthStateChanged;
 
         if (GameManager.Instance != null)
             GameManager.Instance.OnGameStart -= OnGameStart;
@@ -58,26 +61,26 @@ public class EarthStateGraphBinder : MonoBehaviour
             return;
 
         int currentSecond = Mathf.FloorToInt(GameTimer.Instance.CurrentTime);
-        if (currentSecond == lastRecordedSecond)
+        if (currentSecond == _lastRecordedSecond)
             return;
 
-        lastRecordedSecond = currentSecond;
-        if (carbonPpmGraph != null)
-            carbonPpmGraph.AddPoint(snapshot.CarbonPpm);
+        _lastRecordedSecond = currentSecond;
+        if (_carbonPpmGraph != null)
+            _carbonPpmGraph.AddPoint(snapshot.CarbonPpm);
 
-        if (temperatureGraph != null)
-            temperatureGraph.AddPoint(snapshot.TemperatureDeltaC);
-        if (carbonGraph != null)
-            carbonGraph.AddPoint(snapshot.CarbonCount);
-        if (electricityGraph != null)
-            electricityGraph.AddPoint(snapshot.ElectricCount);
-        if (powerGenerationGraph != null)
-            powerGenerationGraph.AddPoint(snapshot.PowerGenerationCount);
+        if (_temperatureGraph != null)
+            _temperatureGraph.AddPoint(snapshot.TemperatureDeltaC);
+        if (_carbonGraph != null)
+            _carbonGraph.AddPoint(snapshot.CarbonCount);
+        if (_electricityGraph != null)
+            _electricityGraph.AddPoint(snapshot.ElectricCount);
+        if (_powerGenerationGraph != null)
+            _powerGenerationGraph.AddPoint(snapshot.PowerGenerationCount);
     }
 
     // 새 게임이 시작되면 그래프 기록 초 카운트를 다시 초기화합니다.
     private void OnGameStart()
     {
-        lastRecordedSecond = -1;
+        _lastRecordedSecond = -1;
     }
 }

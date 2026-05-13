@@ -13,13 +13,13 @@ public class SerialPortManager : MonoBehaviour
 {
     public static SerialPortManager Instance { get; private set; }
 
-    PortJson portJson = new PortJson();
+    private PortJson _portJson = new PortJson();
 
 
-    SerialPort serialPort;
-    private CancellationTokenSource cancellationTokenSource; // CancellationTokenSource 추가
-    private StringBuilder serialBuffer = new StringBuilder();
-    private Queue<string> dataQueue = new Queue<string>();
+    private SerialPort _serialPort;
+    private CancellationTokenSource _cancellationTokenSource;
+    private StringBuilder _serialBuffer = new StringBuilder();
+    private Queue<string> _dataQueue = new Queue<string>();
     protected virtual void Awake()
     {
         if (Instance == null)
@@ -33,18 +33,17 @@ public class SerialPortManager : MonoBehaviour
             Destroy(gameObject);
         }
     }
-    
+
     protected virtual void Start()
     {
         // 포트 열기
-        portJson = JsonManager.instance.portJson;
-        Debug.Log($"포트 데이터 로드됨: COM={portJson.com}, Baud={portJson.baudLate}");
-        serialPort = new SerialPort(portJson.com, portJson.baudLate, Parity.None, 8, StopBits.One);
+        _portJson = JsonManager.instance.portJson;
+        Debug.Log($"포트 데이터 로드됨: COM={_portJson.com}, Baud={_portJson.baudLate}");
+        _serialPort = new SerialPort(_portJson.com, _portJson.baudLate, Parity.None, 8, StopBits.One);
 
         Debug.Log("포트연결시도");
-        //serialPort.ReadTimeout = 500;
-        serialPort.Open();
-        if (serialPort.IsOpen)
+        _serialPort.Open();
+        if (_serialPort.IsOpen)
         {
 
             Debug.Log("연결완료");
@@ -60,19 +59,16 @@ public class SerialPortManager : MonoBehaviour
     }
     async void StartSerialPortReader()
     {
-        cancellationTokenSource = new CancellationTokenSource();
-        var token = cancellationTokenSource.Token;
+        _cancellationTokenSource = new CancellationTokenSource();
+        var token = _cancellationTokenSource.Token;
 
-        while (serialPort != null && serialPort.IsOpen)
+        while (_serialPort != null && _serialPort.IsOpen)
         {
             try
             {
-                // 데이터를 수신
-
                 string input = await Task.Run(() => ReadSerialData(), token);
-                //string data = GetData(input);
 
-                if (!string.IsNullOrEmpty(input) /*&& input.Length > 0*/)
+                if (!string.IsNullOrEmpty(input))
                 {
                     Debug.Log("받은데이터 : " + input);
                     ReceivedData(input);
@@ -81,7 +77,6 @@ public class SerialPortManager : MonoBehaviour
             }
             catch (TimeoutException ex)
             {
-                // 데이터가 없을 때는 무시
                 Debug.LogWarning("데이터 수신 시간 초과: " + ex.Message);
             }
         }
@@ -91,49 +86,47 @@ public class SerialPortManager : MonoBehaviour
         try
         {
 
-            string input = serialPort.ReadExisting(); // 데이터 읽기
+            string input = _serialPort.ReadExisting();
             if (!string.IsNullOrEmpty(input))
             {
-                serialBuffer.Append(input); // (1)
+                _serialBuffer.Append(input);
 
-                string processed = TryGetCompleteMessage(serialBuffer.ToString()); // (2)
-                if (processed != null) // (3)
+                string processed = TryGetCompleteMessage(_serialBuffer.ToString());
+                if (processed != null)
                 {
-                    Debug.Log("완전한 데이터 수신: " + processed); // (4)
-                    serialBuffer.Clear(); // (5)
+                    Debug.Log("완전한 데이터 수신: " + processed);
+                    _serialBuffer.Clear();
                 }
                 return processed;
             }
             return "";
-            //return serialPort.ReadLine(); // 데이터 읽기
         }
         catch (TimeoutException)
         {
-            return null; // 시간 초과 시 null 반환
+            return null;
         }
     }
     private string TryGetCompleteMessage(string buffer)
     {
         int newlineIndex = buffer.IndexOf('\r');
-        //Debug.Log(newlineIndex);
         if (newlineIndex >= 0)
         {
-           
+
             string complete = buffer.Substring(0, newlineIndex).Trim();
             return complete;
         }
 
-        return null; // 아직 끝나지 않은 메시지
+        return null;
     }
-  
+
 
     public void SendData(string message)
     {
-        if (serialPort.IsOpen)
+        if (_serialPort.IsOpen)
         {
             try
             {
-                serialPort.WriteLine(message); // 메시지 송신 (줄 바꿈 추가)
+                _serialPort.WriteLine(message);
                 Debug.Log("Sent: " + message);
             }
             catch (System.Exception ex)
@@ -149,28 +142,21 @@ public class SerialPortManager : MonoBehaviour
     protected virtual void ReceivedData(string data)
     {
         //상속하고 받은데이터로 프로젝트에 맞는 기능 구현
-        //Debug.Log($"{data} 신호보내기");
-
     }
 
     void OnApplicationQuit()
     {
-        // 포트 닫기
-
-        // 종료 시 쓰레드 정리 및 포트 닫기
-
-        if (cancellationTokenSource != null)
+        if (_cancellationTokenSource != null)
         {
             Debug.Log("Task 종료");
-            cancellationTokenSource.Cancel(); // 작업 취소
+            _cancellationTokenSource.Cancel();
         }
-        if (serialPort != null && serialPort.IsOpen)
+        if (_serialPort != null && _serialPort.IsOpen)
         {
-            serialPort.Close();
+            _serialPort.Close();
         }
 
     }
-   
 
 
 

@@ -1,6 +1,7 @@
 using System;
 using System.Runtime.InteropServices;
 using UnityEngine;
+using UnityEngine.Serialization;
 
 public class DualMonitorSpanController : MonoBehaviour
 {
@@ -11,19 +12,26 @@ public class DualMonitorSpanController : MonoBehaviour
     }
 
     [Header("스팬 창 설정")]
-    [SerializeField] private bool applySpanInBuild = true;
-    [SerializeField] private bool forceBorderlessWindow = true;
+    [FormerlySerializedAs("applySpanInBuild")]
+    [SerializeField] private bool _applySpanInBuild = true;
+    [FormerlySerializedAs("forceBorderlessWindow")]
+    [SerializeField] private bool _forceBorderlessWindow = true;
 
     [Header("해상도 모드")]
     [Tooltip("Auto: 가상 화면(모니터 합산) 자동 인식 / Manual: 아래 값으로 강제 적용")]
-    [SerializeField] private ResolutionMode resolutionMode = ResolutionMode.Auto;
+    [FormerlySerializedAs("resolutionMode")]
+    [SerializeField] private ResolutionMode _resolutionMode = ResolutionMode.Auto;
 
     [Header("수동 해상도 설정 (Manual 모드 전용)")]
-    [SerializeField] private int manualWidth = 3840;
-    [SerializeField] private int manualHeight = 1080;
+    [FormerlySerializedAs("manualWidth")]
+    [SerializeField] private int _manualWidth = 3840;
+    [FormerlySerializedAs("manualHeight")]
+    [SerializeField] private int _manualHeight = 1080;
     [Tooltip("창의 좌상단 원점 좌표 (가상 화면 기준)")]
-    [SerializeField] private int manualOriginX = 0;
-    [SerializeField] private int manualOriginY = 0;
+    [FormerlySerializedAs("manualOriginX")]
+    [SerializeField] private int _manualOriginX = 0;
+    [FormerlySerializedAs("manualOriginY")]
+    [SerializeField] private int _manualOriginY = 0;
 
     private const int GWL_STYLE = -16;
     private const int WS_POPUP = unchecked((int)0x80000000);
@@ -53,16 +61,14 @@ public class DualMonitorSpanController : MonoBehaviour
         int cy,
         uint uFlags);
 
-    // 빌드 실행 시 현재 윈도우의 전체 가상 화면 크기에 맞춰 스팬 창을 적용합니다.
     private void Start()
     {
-        if (!applySpanInBuild || Application.isEditor)
+        if (!_applySpanInBuild || Application.isEditor)
             return;
 
         ApplySpanWindow();
     }
 
-    // 두 모니터가 하나의 큰 화면처럼 보이도록 윈도우 크기와 위치를 설정합니다.
     public void ApplySpanWindow()
     {
         ResolveTargetRect(out int targetX, out int targetY, out int targetWidth, out int targetHeight);
@@ -82,22 +88,21 @@ public class DualMonitorSpanController : MonoBehaviour
             return;
         }
 
-        if (forceBorderlessWindow)
+        if (_forceBorderlessWindow)
             SetWindowLong(windowHandle, GWL_STYLE, WS_POPUP | WS_VISIBLE);
 
         SetWindowPos(windowHandle, IntPtr.Zero, targetX, targetY, targetWidth, targetHeight, SWP_SHOWWINDOW);
-        Debug.Log($"스팬 창 적용 완료 [{resolutionMode}]: {targetWidth}x{targetHeight} / origin({targetX}, {targetY})");
+        Debug.Log($"스팬 창 적용 완료 [{_resolutionMode}]: {targetWidth}x{targetHeight} / origin({targetX}, {targetY})");
     }
 
-    // 현재 모드와 인스펙터 값을 조합해 적용할 창의 크기/원점을 계산합니다.
     private void ResolveTargetRect(out int targetX, out int targetY, out int targetWidth, out int targetHeight)
     {
-        if (resolutionMode == ResolutionMode.Manual)
+        if (_resolutionMode == ResolutionMode.Manual)
         {
-            targetX = manualOriginX;
-            targetY = manualOriginY;
-            targetWidth = manualWidth;
-            targetHeight = manualHeight;
+            targetX = _manualOriginX;
+            targetY = _manualOriginY;
+            targetWidth = _manualWidth;
+            targetHeight = _manualHeight;
             return;
         }
 
