@@ -32,8 +32,11 @@ public class EarthStateLevelRecorder : MonoBehaviour
     [SerializeField] private TMP_Text _developmentLevelText;
     [FormerlySerializedAs("ecoLevelText")]
     [SerializeField] private TMP_Text _ecoLevelText;
+    [SerializeField] private TMP_Text _currentCarbonText;
+    [SerializeField] private TMP_Text _currentPowerGenerationText;
     [FormerlySerializedAs("levelFormat")]
     [SerializeField] private string _levelFormat = "LEVEL {0}";
+    [SerializeField] private string _tokenFormat = "{0}개";
 
     [Header("디버그")]
     [FormerlySerializedAs("samples")]
@@ -137,6 +140,8 @@ public class EarthStateLevelRecorder : MonoBehaviour
         SetLevelText(_sustainabilityLevelText, sample.SustainabilityLevel);
         SetLevelText(_developmentLevelText, sample.DevelopmentLevel);
         SetLevelText(_ecoLevelText, sample.EcoLevel);
+        SetTokenText(_currentCarbonText, sample.CurrentCarbon);
+        SetTokenText(_currentPowerGenerationText, sample.CurrentPowerGeneration);
         _lastReplayedIndex = idx;
     }
 
@@ -145,6 +150,13 @@ public class EarthStateLevelRecorder : MonoBehaviour
         if (target == null)
             return;
         target.text = string.Format(_levelFormat, level);
+    }
+
+    private void SetTokenText(TMP_Text target, int value)
+    {
+        if (target == null)
+            return;
+        target.text = string.Format(_tokenFormat, value);
     }
 
     private void TrySubscribe()
