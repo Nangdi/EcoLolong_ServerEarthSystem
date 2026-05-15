@@ -1,5 +1,6 @@
 using System.Collections;
 using System.Collections.Generic;
+using System.Threading;
 using UnityEngine;
 using UnityEngine.Serialization;
 
@@ -219,7 +220,7 @@ public class ResourceGraphs : MonoBehaviour
         while (true)
         {
             yield return new WaitForSeconds(1f / 15f);
-            RedrawGraph(_recordPoints);
+            RedrawGraph(_points);
         }
     }
 
@@ -231,7 +232,7 @@ public class ResourceGraphs : MonoBehaviour
 
         if (_replayCoroutine != null)
             StopCoroutine(_replayCoroutine);
-
+        GameTimer.Instance.ResetTimer();
         _replayCoroutine = StartCoroutine(recordCycleX15_co());
     }
 
@@ -247,11 +248,13 @@ public class ResourceGraphs : MonoBehaviour
             StopCoroutine(_replayCoroutine);
 
         AddPoint(_initialGraphValue);
+        GameTimer.Instance.ResetTimer();
         _recordCycleCoroutine = StartCoroutine(recordCycle_co());
     }
 
     private void Graph_OnGameEnd()
     {
+        SoftClearGraph();
         if (_recordCycleCoroutine != null)
             StopCoroutine(_recordCycleCoroutine);
 
@@ -259,6 +262,7 @@ public class ResourceGraphs : MonoBehaviour
             StopCoroutine(_replayCoroutine);
 
         _recordPoints = new List<GraphPoint>(_points);
+        GameTimer.Instance.ResetTimer();
     }
 
     // 색/머티리얼은 같은 GameObject의 GraphMaterialController가 전담합니다.

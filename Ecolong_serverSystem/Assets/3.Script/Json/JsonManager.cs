@@ -19,18 +19,32 @@ public class PortJson
     public int baudLate = 19200;
 }
 
+public class VideoSettingJson
+{
+    public string folderPath = "";
+    public float stabilityCheckIntervalSeconds = 0.3f;
+    public int stabilityCheckCount = 2;
+    public float maxWaitSeconds = 30f;
+    public bool loop = false;
+    public bool playAudio = true;
+    public float volume = 1f;
+}
+
 public class JsonManager : MonoBehaviour
 {
     public static JsonManager instance;
     public GameSettingData gameSettingData = new GameSettingData();
     public PortJson portJson = new PortJson();
     public GameDynamicData gameDynamicData = new GameDynamicData();
+    public VideoSettingJson videoSettingJson = new VideoSettingJson();
 
     private string _gameDataPath;
     private string _gameDynamicDataPath;
     private string _portPath;
+    private string _videoSettingPath;
 
     public string GameDataPath => _gameDataPath;
+    public string VideoSettingPath => _videoSettingPath;
 
     // 싱글톤을 초기화하고 JSON 파일에서 런타임 설정 데이터를 불러옵니다.
     private void Awake()
@@ -49,14 +63,23 @@ public class JsonManager : MonoBehaviour
         _portPath = Path.Combine(Application.streamingAssetsPath, "port.json");
         _gameDynamicDataPath = Path.Combine(Application.streamingAssetsPath, "Setting.json");
         _gameDataPath = Path.Combine(Application.persistentDataPath, "gameSettingData.json");
+        _videoSettingPath = Path.Combine(Application.streamingAssetsPath, "VideoSetting.json");
 
         gameSettingData ??= new GameSettingData();
         gameDynamicData ??= new GameDynamicData();
         portJson ??= new PortJson();
+        videoSettingJson ??= new VideoSettingJson();
 
         gameSettingData = LoadData(_gameDataPath, gameSettingData);
         gameDynamicData = LoadData(_gameDynamicDataPath, gameDynamicData);
         portJson = LoadData(_portPath, portJson);
+        videoSettingJson = LoadData(_videoSettingPath, videoSettingJson);
+    }
+
+    // VideoSetting.json 파일을 현재 메모리 값으로 다시 기록합니다.
+    public void SaveVideoSetting()
+    {
+        SaveData(videoSettingJson, _videoSettingPath);
     }
 
     // 현재 게임 설정 데이터를 gameSettingData.json 파일에 저장합니다.

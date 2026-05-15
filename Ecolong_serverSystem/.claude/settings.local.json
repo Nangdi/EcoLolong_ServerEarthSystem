@@ -20,7 +20,19 @@
       "Bash(where uvx *)",
       "Bash(where uv *)",
       "Bash(where python *)",
-      "Bash(where claude *)"
+      "Bash(where claude *)",
+      "PowerShell(Start-Sleep -Milliseconds 1500; $tc = New-Object System.Net.Sockets.TcpClient; $tc.Connect\\(\"127.0.0.1\", 5000\\); $stream = $tc.GetStream\\(\\); $writer = New-Object System.IO.StreamWriter $stream; $writer.WriteLine\\(\"VIDEO_READY|test.mp4\"\\); $writer.Flush\\(\\); $writer.Close\\(\\); $tc.Close\\(\\); \"SENT\")",
+      "PowerShell(Start-Sleep -Seconds 3; $tc = New-Object System.Net.Sockets.TcpClient; $tc.Connect\\(\"127.0.0.1\", 5000\\); $stream = $tc.GetStream\\(\\); $bytes = [System.Text.Encoding]::UTF8.GetBytes\\(\"VIDEO_READY|test.mp4`r`n\"\\); $stream.Write\\($bytes, 0, $bytes.Length\\); $stream.Flush\\(\\); Start-Sleep -Milliseconds 300; $stream.Close\\(\\); $tc.Close\\(\\); \"SENT $\\($bytes.Length\\) bytes\")",
+      "PowerShell(Start-Sleep -Seconds 5; try { $tc = New-Object System.Net.Sockets.TcpClient; $tc.Connect\\(\"127.0.0.1\", 5000\\); $stream = $tc.GetStream\\(\\); $bytes = [System.Text.Encoding]::UTF8.GetBytes\\(\"VIDEO_READY|test.mp4`r`n\"\\); $stream.Write\\($bytes, 0, $bytes.Length\\); $stream.Flush\\(\\); Start-Sleep -Milliseconds 500; $stream.Close\\(\\); $tc.Close\\(\\); \"SUCCESS: sent $\\($bytes.Length\\) bytes\" } catch { \"FAILED: $_\" })",
+      "Bash(netstat -ano)",
+      "Bash(findstr \":5000\")",
+      "Bash(findstr \":1234\")",
+      "PowerShell(try { $tc = New-Object System.Net.Sockets.TcpClient; $tc.Connect\\(\"127.0.0.1\", 1234\\); $stream = $tc.GetStream\\(\\); $bytes = [System.Text.Encoding]::UTF8.GetBytes\\(\"VIDEO_READY|test.mp4`r`n\"\\); $stream.Write\\($bytes, 0, $bytes.Length\\); $stream.Flush\\(\\); Start-Sleep -Milliseconds 500; $stream.Close\\(\\); $tc.Close\\(\\); \"SUCCESS: sent $\\($bytes.Length\\) bytes to 127.0.0.1:1234\" } catch { \"FAILED: $_\" })",
+      "PowerShell(netsh int *)",
+      "PowerShell(Get-Process *)",
+      "PowerShell(Get-NetTCPConnection *)",
+      "Bash(tasklist /FI \"IMAGENAME eq Unity.exe\" /FO CSV)",
+      "mcp__UnityMCP__validate_script"
     ]
   }
 }

@@ -29,6 +29,7 @@ public class TcpDataAggregator : MonoBehaviour
     }
 
     private const int MaxRecentMessages = 200;
+    private const string VideoReadyPrefix = "VIDEO_UPLOAD";
     private static readonly EnergyDataDefinition[] SupportedDataDefinitions =
     {
         new EnergyDataDefinition("THERMAL", "화력", "화력", "thermal", "thermal_power"),
@@ -75,6 +76,7 @@ public class TcpDataAggregator : MonoBehaviour
     [SerializeField] private TMP_InputField _outgoingMessageInputField;
 
     private readonly ConcurrentQueue<TcpDataReceivedInfo> _receivedQueue = new ConcurrentQueue<TcpDataReceivedInfo>();
+    private readonly ConcurrentQueue<string> _videoFileNameQueue = new ConcurrentQueue<string>();
     private readonly List<TcpClient> _connectedClients = new List<TcpClient>();
     private readonly Dictionary<TcpClient, ClientConnectionInfo> _clientInfoByClient = new Dictionary<TcpClient, ClientConnectionInfo>();
     private readonly Queue<string> _recentMessages = new Queue<string>();
@@ -90,6 +92,7 @@ public class TcpDataAggregator : MonoBehaviour
     public event Action<EnergyTotals> TotalsChanged;
     public event Action<TcpDataReceivedInfo> DataReceived;
     public event Action DebugStateChanged;
+    public event Action<string> VideoReadyReceived;
 
     private struct ClientConnectionInfo
     {
@@ -138,6 +141,8 @@ public class TcpDataAggregator : MonoBehaviour
     {
         HandleKeyboardTestInput();
 
+        ProcessVideoQueue();
+
         bool totalsChanged = ProcessReceivedQueue();
 
         if (_connectionStatusChanged)
@@ -148,6 +153,13 @@ public class TcpDataAggregator : MonoBehaviour
 
         if (totalsChanged)
             NotifyTotalsChanged();
+    }
+
+    // 비디오 큐를 비우면서 메인 스레드에서 VideoReadyReceived 이벤트를 발생시킵니다.
+    private void ProcessVideoQueue()
+    {
+        while (_videoFileNameQueue.TryDequeue(out string fileName))
+            VideoReadyReceived?.Invoke(fileName);
     }
 
     // 수신 큐에 쌓인 패킷을 모두 꺼내서 누적값에 반영하고 변경 여부를 반환합니다.
@@ -475,6 +487,9 @@ public class TcpDataAggregator : MonoBehaviour
 
     private void EnqueueParsedLine(string line, string remoteEndPoint)
     {
+        if (TryEnqueueVideoReady(line, remoteEndPoint))
+            return;
+
         if (GameManager.Instance.CurrentGameState != GameState.Playing)
         {
             AddRecentMessage($"[경고] 게임이 진행 중이 아닐 때 수신된 데이터 무시 / Remote: {remoteEndPoint} / Data: {line}");
@@ -505,6 +520,32 @@ public class TcpDataAggregator : MonoBehaviour
                 AddRecentMessage($"[경고] 잘못된 TCP 데이터 무시 / Remote: {remoteEndPoint} / Data: {entry}");
             }
         }
+    }
+
+    // VIDEO_UPLOAD|파일명 형식의 라인을 감지하면 비디오 큐로 enqueue하고 true를 반환합니다.
+    // 게임 상태가 Ended일 때만 수신을 허용하며, 그 외 상태에서는 무시되 따라 일반 데이터 파서로 넘어가지 않습니다.
+    private bool TryEnqueueVideoReady(string line, string remoteEndPoint)
+    {
+        if (string.IsNullOrEmpty(line))
+            return false;
+
+        string[] parts = line.Split(new[] { '|' }, 2);
+        if (!string.Equals(parts[0].Trim(), VideoReadyPrefix, StringComparison.OrdinalIgnoreCase))
+            return false;
+
+        GameManager gameManager = GameManager.Instance;
+        GameState currentState = gameManager != null ? gameManager.CurrentGameState : GameState.Ready;
+        if (currentState != GameState.TimeOut)
+        {
+            AddRecentMessage($"[경고] VIDEO_UPLOAD는 TimeOut 상태에서만 수신합니다. 현재 상태: {currentState} / Remote: {remoteEndPoint}");
+            return true;
+        }
+
+        string fileName = parts.Length > 1 ? parts[1].Trim() : string.Empty;
+        int clientId = GetClientIdByRemoteEndPoint(remoteEndPoint);
+        AddRecentMessage($"[Client {clientId}] {VideoReadyPrefix}|{fileName}");
+        _videoFileNameQueue.Enqueue(fileName);
+        return true;
     }
 
     private bool TryParseEntry(string entry, out string name, out int count)
@@ -558,6 +599,11 @@ public class TcpDataAggregator : MonoBehaviour
     {
         lock (_clientLock)
             return _connectedClients.Count;
+    }
+
+    public int GetMaxClientCount()
+    {
+        return _maxClientCount;
     }
 
     public string GetDisplayName(string dataName)
@@ -630,7 +676,7 @@ public class TcpDataAggregator : MonoBehaviour
         }
     }
 
-    private void AddRecentMessage(string message)
+    public void AddRecentMessage(string message)
     {
         lock (_clientLock)
         {

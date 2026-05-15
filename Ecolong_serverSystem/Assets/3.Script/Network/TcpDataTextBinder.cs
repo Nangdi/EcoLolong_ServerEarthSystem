@@ -16,7 +16,7 @@ public class TcpDataTextBinder : MonoBehaviour
     [FormerlySerializedAs("showLabel")]
     [SerializeField] private bool _showLabel = false;
     [FormerlySerializedAs("valueOnlyFormat")]
-    [SerializeField] private string _valueOnlyFormat = "{0}";
+    [SerializeField] private string _valueOnlyFormat = "{0}개";
     [FormerlySerializedAs("labeledValueFormat")]
     [SerializeField] private string _labeledValueFormat = "{0} : {1}";
 

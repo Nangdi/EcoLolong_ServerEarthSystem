@@ -30,6 +30,7 @@ public class GameTimer : MonoBehaviour
     public float gameTime = 900f; // 15분 = 900초
     public float targetTime = 900;
     public float settingGameScale = 1f; // 게임 시간의 흐름을 조절하는 변수
+    public bool isRePlay = false;
     public float CurrentTime
     {
         get { return _currentTime; }
@@ -38,7 +39,6 @@ public class GameTimer : MonoBehaviour
 
     public event Action<float> OnTimeChanged;
     public event Action OnTimeOver;
-    public event Action OnReplayEnd;
     private void Awake()
     {
         if (Instance != null && Instance != this)
@@ -71,18 +71,18 @@ public class GameTimer : MonoBehaviour
 
         if (CurrentTime >= targetTime)
         {
-            _currentTime = 0;
-            if (!GameManager.Instance.IsReplay)
+            if (!isRePlay)
             {
 
-                GameManager.Instance.SetGameState(GameState.Ended);
+                _currentTime = 0;
+                GameManager.Instance.SetGameState(GameState.TimeOut);
                 Debug.Log("Time Over!");
                 OnTimeOver?.Invoke();
             }
             else
             {
-                GameManager.Instance.SetGameState(GameState.Ready);
-                Timer_OnGameEnd();
+                GameManager.Instance.SetGameState(GameState.Ended);
+                OnTimeOver?.Invoke();
                 //Debug.Log("Replay End! . Game End.");
                 // ?.Invoke();
             }
@@ -98,17 +98,20 @@ public class GameTimer : MonoBehaviour
     }
     public void SettingTimer()
     {
-        switch ((GameManager.Instance.CurrentGameState)
-)
+        switch (GameManager.Instance.CurrentGameState)
         {
             case GameState.Ready:
+                isRePlay = false;
                 targetTime = gameTime;
-
                 break;
             case GameState.Playing:
-
+                break;
+            case GameState.TimeOut:
+                isRePlay = true;
+                targetTime = gameTime;
                 break;
             case GameState.Ended:
+                isRePlay = true;
                 targetTime = gameTime;
                 break;
         }
@@ -123,10 +126,7 @@ public class GameTimer : MonoBehaviour
         CurrentTime = 0f;
         OnTimeChanged?.Invoke(_currentTime);
     }
-    public void SetGameTime(float time)
-    {
-        gameTime = time;
-    }
+
     public void SetTimerSpeed(float scale)
     {
         settingGameScale = scale;

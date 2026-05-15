@@ -149,7 +149,7 @@ public class EarthStateManager : MonoBehaviour
             _aggregator = TcpDataAggregator.Instance;
 
         if (_resetAggregatorOnGameStart && _aggregator != null)
-            _aggregator.ClearTotals();
+            // _aggregator.ClearTotals();
 
         _currentState.ResetToDefaults();
         RefreshState();
@@ -164,6 +164,14 @@ public class EarthStateManager : MonoBehaviour
 
         if (GameManager.Instance != null)
             _lastObservedGameState = GameManager.Instance.CurrentGameState;
+    }
+
+    // 스냅샷을 초기값으로 되돌리고 StateChanged를 강제로 발행해 UI 텍스트까지 함께 갱신합니다.
+    // RefreshState는 동일값일 때 이벤트를 발행하지 않으므로, 외부 리셋 경로에서는 이 메서드를 사용합니다.
+    public void ResetState()
+    {
+        _currentState.ResetToDefaults();
+        StateChanged?.Invoke(_currentState);
     }
 
     public void SetSoftwareEcoOffset(int offset)

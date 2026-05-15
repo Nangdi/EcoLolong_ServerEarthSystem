@@ -1,0 +1,9 @@
+{
+    "folderPath": "C:\\Users\\User\\Desktop",
+    "stabilityCheckIntervalSeconds": 0.30000001192092898,
+    "stabilityCheckCount": 2,
+    "maxWaitSeconds": 30.0,
+    "loop": false,
+    "playAudio": true,
+    "volume": 1.0
+}
