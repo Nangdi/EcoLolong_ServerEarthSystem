@@ -41,7 +41,7 @@ public class TcpDataAggregator : MonoBehaviour
         new EnergyDataDefinition("CARBON", "탄소", "탄소", "carbon"),
         new EnergyDataDefinition("POWER_GENERATION", "발전", "발전", "generation", "power_generation"),
         new EnergyDataDefinition("ECO", "도시친환경도", "도시친환경도", "city_eco_score", "eco_city"),
-        new EnergyDataDefinition("BUILDING", "건물 추가", "건물추가", "건물 추가", "도시 건물수", "도시건물수", "city_building_count", "building_count", "BULDING", "building_add"),
+        new EnergyDataDefinition("BUILDING", "건물", "건물", "건물", "도시 건물수", "도시건물수", "city_building_count", "building_count", "BULDING", "building_add"),
         new EnergyDataDefinition("CARBON_CAPTURE", "탄소 포집", "탄소포집", "탄소 포집", "CARBON_CAPTURE", "capture_carbon", "remove_carbon", "carbon_remove")
     };
 

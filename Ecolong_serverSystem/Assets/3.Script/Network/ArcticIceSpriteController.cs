@@ -1,4 +1,5 @@
 using UnityEngine;
+using UnityEngine.UI;
 using UnityEngine.Serialization;
 
 // EarthStateSnapshot.ArcticIcePercent 값에 따라 SpriteRenderer의 sprite를 3단계로 교체합니다.
@@ -15,7 +16,7 @@ public class ArcticIceSpriteController : MonoBehaviour
 
     [Header("Sprite Renderer")]
     [FormerlySerializedAs("iceRenderer")]
-    [SerializeField] private SpriteRenderer _iceRenderer;
+    [SerializeField] private Image _iceIamage;
 
     [Header("단계별 Sprite")]
     [Tooltip("얼음 잔존율이 50% 이상일 때 표시")]
@@ -42,8 +43,8 @@ public class ArcticIceSpriteController : MonoBehaviour
 
     private void Awake()
     {
-        if (_iceRenderer == null)
-            _iceRenderer = GetComponent<SpriteRenderer>();
+        if (_iceIamage == null)
+            _iceIamage = GetComponent<Image>();
     }
 
     private void OnEnable()
@@ -96,7 +97,7 @@ public class ArcticIceSpriteController : MonoBehaviour
 
     private void ApplySnapshot(EarthStateSnapshot snapshot)
     {
-        if (_iceRenderer == null || snapshot == null)
+        if (_iceIamage == null || snapshot == null)
             return;
 
         IceStage stage = ResolveStage(snapshot.ArcticIcePercent);
@@ -107,7 +108,7 @@ public class ArcticIceSpriteController : MonoBehaviour
         if (target == null)
             return;
 
-        _iceRenderer.sprite = target;
+        _iceIamage.sprite = target;
         _lastAppliedStage = stage;
     }
 

@@ -77,6 +77,10 @@ public class TcpDataTextBinder : MonoBehaviour
     [SerializeField] private TMP_Text _windPowerText;
     [FormerlySerializedAs("hydrogenText")]
     [SerializeField] private TMP_Text _hydrogenText;
+    [Tooltip("화력+수력+태양광+풍력+수소의 (count × efficiency) 합계를 표시할 텍스트")]
+    [SerializeField] private TMP_Text _totalEnergyProductionText;
+    [Tooltip("누적 에너지 생산량 표시 형식. 기본은 000000 (6자리 0패딩, 500이면 000500)")]
+    [SerializeField] private string _totalEnergyFormat = "{0:000000}";
 
 
     [Header("EarthState 단계/상태 표시")]
@@ -183,6 +187,21 @@ public class TcpDataTextBinder : MonoBehaviour
         UpdateProductionText(_solarPowerText, totals != null ? totals.solarPower : 0, _solarEfficiency);
         UpdateProductionText(_windPowerText, totals != null ? totals.windPower : 0, _windEfficiency);
         UpdateProductionText(_hydrogenText, totals != null ? totals.hydrogen : 0, _hydrogenEfficiency);
+
+        // 누적 에너지 생산량 = 5종 발전의 (count × efficiency) 합계. 단위 표기는 옆 라벨이 담당.
+        float totalProduction = 0f;
+        if (totals != null)
+        {
+            totalProduction =
+                totals.thermalPower * _thermalEfficiency +
+                totals.hydroPower * _hydroEfficiency +
+                totals.solarPower * _solarEfficiency +
+                totals.windPower * _windEfficiency +
+                totals.hydrogen * _hydrogenEfficiency;
+        }
+        if (_totalEnergyProductionText != null)
+            _totalEnergyProductionText.text = string.Format(_totalEnergyFormat, totalProduction);
+
         UpdateTargetText(_electricEnergyText, "전기에너지", totals != null ? totals.electricCount : 0);
         UpdateTargetText(_carbonText, "탄소", totals != null ? totals.totalCarbon : 0);
         UpdateTargetText(_powerGenerationText, "발전", totals != null ? totals.powerGeneration : 0);
