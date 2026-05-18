@@ -203,11 +203,15 @@ public class ResourceGraphs : MonoBehaviour
         return _points;
     }
 
+    // settingGameScale = GameManager.gameTimeScale 이므로 사용자가 패널에서 속도를 바꾸면
+    // 다음 사이클부터 그래프 샘플링 주기가 1 / gameTimeScale 초로 자동 단축됩니다.
     private IEnumerator recordCycle_co()
     {
         while (!_isReplayGraph)
         {
-            yield return new WaitForSeconds(1f);
+            float scale = GameTimer.Instance != null ? GameTimer.Instance.settingGameScale : 1f;
+            if (scale <= 0f) scale = 1f;
+            yield return new WaitForSeconds(1f / scale);
             RedrawGraph(_points);
         }
     }

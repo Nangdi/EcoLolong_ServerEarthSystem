@@ -126,7 +126,14 @@ public class EarthStateManager : MonoBehaviour
         SyncTrackingStateWithGame();
 
         if (Application.isPlaying && _isStateTrackingActive)
-            RefreshState(Time.deltaTime);
+        {
+            // 탄소 ppm 변화량은 "게임시간 1초당 N ppm" 단위로 정의돼 있으므로,
+            // 누적 시에도 게임시간 델타(=실시간 * gameTimeScale)를 사용해야 합니다.
+            // 그렇지 않으면 gameTimeScale=60일 때 타이머는 15초만에 끝나지만 ppm은 15초치만 누적돼 변화가 거의 없습니다.
+            float scale = GameTimer.Instance != null ? GameTimer.Instance.settingGameScale : 1f;
+            if (scale <= 0f) scale = 1f;
+            RefreshState(Time.unscaledDeltaTime * scale);
+        }
     }
 
     public void SetAggregator(TcpDataAggregator targetAggregator)

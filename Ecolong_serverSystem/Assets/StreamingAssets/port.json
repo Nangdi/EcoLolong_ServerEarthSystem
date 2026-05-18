@@ -1,4 +1,5 @@
 {
     "com": "COM4",
-    "baudLate": 19200
+    "baudLate": 19200,
+    "tcpPort": 5000
 }

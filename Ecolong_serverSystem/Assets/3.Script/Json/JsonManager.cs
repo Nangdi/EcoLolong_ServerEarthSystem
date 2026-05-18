@@ -7,6 +7,8 @@ using UnityEngine;
 public class GameSettingData
 {
     public bool useUnityOnTop;
+    // 게임 플레이 중 GameTimer/그래프 갱신 속도. 1이면 실시간, 60이면 1초당 1분이 흐릅니다.
+    public float gameTimeScale = 1f;
 }
 
 public class GameDynamicData
@@ -17,6 +19,8 @@ public class PortJson
 {
     public string com = "COM4";
     public int baudLate = 19200;
+    // 서버가 수신 대기할 TCP 포트입니다. TcpDataAggregator.Start에서 이 값을 사용해 listener를 띄웁니다.
+    public int tcpPort = 5000;
 }
 
 public class VideoSettingJson

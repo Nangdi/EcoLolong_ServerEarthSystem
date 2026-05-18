@@ -67,11 +67,13 @@ Assets/3.Script/
   GameSettingsPanelUI.cs
   JsonManager.cs
  Network/
+  ArcticIceSpriteController.cs
   EarthStateGraphBinder.cs
   EarthStateLevelRecorder.cs
   EarthStateManager.cs
   EarthStateSnapshot.cs
   EnergyTotals.cs
+  SeaLevelHeightController.cs
   TcpClientConnectionGuide.cs
   TcpDataAggregator.cs
   TcpDataReceivedInfo.cs

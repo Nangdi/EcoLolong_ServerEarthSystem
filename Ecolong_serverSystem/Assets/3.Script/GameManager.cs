@@ -33,7 +33,9 @@ public class GameManager : MonoBehaviour
     public event Action OnGameEnd; // 게임 종료 이벤트
     public event Action OnReplay; // 리플레이 시작 이벤트 (R 키)
 
-    public float gameTimeScale = 1f; // 게임 시간의 흐름을 조절하는 변수
+    [Tooltip("플레이 중 게임 시간이 흐르는 속도. 1=실시간, 60=1초가 1분.")]
+    [Min(0.01f)]
+    public float gameTimeScale = 1f; // 게임 시간의 흐름을 조절하는 변수 (GameTimer/그래프 갱신의 단일 진실원)
     public GameState CurrentGameState = GameState.Ready; // 현재 게임 상태를 나타내는 변수
     public bool IsReplay { get; private set; } = false; // 리플레이 진행 여부. GameTimer 등 외부에서 읽어 사용합니다.
 
@@ -73,9 +75,43 @@ public class GameManager : MonoBehaviour
     }
     void Start()
     {
-        Time.timeScale = gameTimeScale; // 게임 시작 시 시간 흐름을 설정
+        // 게임 시간 속도는 gameTimeScale 하나만으로 통제하기 위해 Unity의 전역 시간배율은 항상 1로 정규화합니다.
+        // (TimeManager.asset의 m_TimeScale이 1이 아니면 GameTimer/그래프가 의도와 다르게 빨라집니다.)
+        Time.timeScale = 1f;
+        // gameSettingData.json에 저장된 사용자 설정 속도를 우선 적용합니다. JsonManager가 아직 없으면 인스펙터 값을 그대로 사용합니다.
+        ApplyGameTimeScaleFromSettings();
+        // 시작 시점에는 Ready 상태이므로 GameTimer에도 동일 스케일을 푸시해 둡니다.
+        if (GameTimer.Instance != null)
+            GameTimer.Instance.SetTimerSpeed(gameTimeScale);
         GameTimer.Instance.OnTimeOver += GameManager_OnGameEnd;
         TrySubscribeVideoReady();
+    }
+
+    // 사용자가 게임세팅 패널에서 수정한 값을 즉시 GameTimer에 반영합니다.
+    // 리플레이 중에는 _replayTimerSpeed가 우선이므로 GameTimer 쪽 푸시는 건너뜁니다.
+    public void SetGameTimeScale(float scale)
+    {
+        if (scale <= 0f)
+            scale = 0.01f;
+
+        gameTimeScale = scale;
+
+        if (IsReplay)
+            return;
+
+        if (GameTimer.Instance != null)
+            GameTimer.Instance.SetTimerSpeed(gameTimeScale);
+    }
+
+    private void ApplyGameTimeScaleFromSettings()
+    {
+        JsonManager jsonManager = JsonManager.instance;
+        if (jsonManager == null || jsonManager.gameSettingData == null)
+            return;
+
+        float saved = jsonManager.gameSettingData.gameTimeScale;
+        if (saved > 0f)
+            gameTimeScale = saved;
     }
 
     // TcpDataAggregator가 늦게 초기화되는 케이스를 위해 Start와 Update에서 반복적으로 구독을 시도합니다.
@@ -130,7 +166,7 @@ public class GameManager : MonoBehaviour
     // Update is called once per frame
     void Update()
     {
-        Time.timeScale = gameTimeScale; // 게임 시작 시 시간 흐름을 설정
+        // Time.timeScale = gameTimeScale; // 게임 시작 시 시간 흐름을 설정
         TrySubscribeVideoReady();
 
         // S: Ready(첫 시작) 또는 Playing(재시작) 상태에서만 받습니다.
@@ -210,7 +246,7 @@ public class GameManager : MonoBehaviour
         if (GameTimer.Instance == null)
             return;
 
-        gameTimeScale = 1f;
+        // gameTimeScale은 사용자 설정값이므로 덮어쓰지 않고, 리플레이 동안만 _replayTimerSpeed로 일시 전환합니다.
         Time.timeScale = 1f;
         IsReplay = true;
         GameTimer.Instance.StartTimer();
@@ -225,7 +261,8 @@ public class GameManager : MonoBehaviour
         {
             case GameState.Ready:
                 IsReplay = false;
-                  GameTimer.Instance.SetTimerSpeed(1);
+                // Ready로 돌아갈 때도 사용자 설정 속도를 유지합니다.
+                GameTimer.Instance.SetTimerSpeed(gameTimeScale);
                 break;
             case GameState.TimeOut:
                 IsReplay = true;

@@ -62,7 +62,7 @@ public class EarthStateSnapshot
         CarbonPpmChangePerSecond = 0f;
         TemperatureDeltaC = 0f;
         ArcticIcePercent = 100f;
-        SeaLevelRiseMeters = 0f;
+        SeaLevelRiseMeters = 0.001f;
     }
 
     // 모든 필드를 한 번에 비교한 뒤 차이가 있는 경우에만 값을 갱신하고 true를 반환합니다.

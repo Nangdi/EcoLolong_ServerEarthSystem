@@ -65,7 +65,9 @@ public class GameTimer : MonoBehaviour
     {
         if (!IsRunning) return;
 
-        CurrentTime += Time.deltaTime * settingGameScale;
+        // 프로젝트의 Time.timeScale(TimeManager.asset)이 1이 아니어도 게임 시간은 settingGameScale 한 가지만 따르도록
+        // unscaledDeltaTime을 사용합니다. 그렇지 않으면 m_TimeScale 값이 그대로 곱해져 의도와 다르게 빨라집니다.
+        CurrentTime += Time.unscaledDeltaTime * settingGameScale;
         OnTimeChanged?.Invoke(_currentTime);
 
 

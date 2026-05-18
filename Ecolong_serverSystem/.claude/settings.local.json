@@ -32,7 +32,10 @@
       "PowerShell(Get-Process *)",
       "PowerShell(Get-NetTCPConnection *)",
       "Bash(tasklist /FI \"IMAGENAME eq Unity.exe\" /FO CSV)",
-      "mcp__UnityMCP__validate_script"
+      "mcp__UnityMCP__validate_script",
+      "PowerShell(Get-ChildItem *)",
+      "PowerShell(Test-Path *)",
+      "Bash(git *)"
     ]
   }
 }

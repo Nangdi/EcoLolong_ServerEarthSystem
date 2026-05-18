@@ -129,6 +129,9 @@ public class TcpDataAggregator : MonoBehaviour
     // 씬 시작 시 설정값에 따라 TCP 서버를 자동으로 시작합니다.
     private void Start()
     {
+        // port.json에 저장된 tcpPort 값을 우선 적용합니다. JsonManager가 없으면 인스펙터 값을 그대로 사용합니다.
+        ApplyListenPortFromJson();
+
         if (_autoStart)
             StartServer();
 
@@ -593,6 +596,27 @@ public class TcpDataAggregator : MonoBehaviour
     public int GetListenPort()
     {
         return _listenPort;
+    }
+
+    // port.json의 tcpPort가 1~65535 범위의 유효한 값이면 인스펙터 값을 덮어쓰고 로그를 남깁니다.
+    private void ApplyListenPortFromJson()
+    {
+        JsonManager jsonManager = JsonManager.instance;
+        if (jsonManager == null || jsonManager.portJson == null)
+            return;
+
+        int jsonPort = jsonManager.portJson.tcpPort;
+        if (jsonPort <= 0 || jsonPort > 65535)
+        {
+            Debug.LogWarning($"port.json tcpPort 값이 유효 범위(1~65535)를 벗어났습니다: {jsonPort}. 인스펙터 값 {_listenPort}을 그대로 사용합니다.");
+            return;
+        }
+
+        if (_listenPort != jsonPort)
+        {
+            Debug.Log($"port.json tcpPort 적용: {_listenPort} -> {jsonPort}");
+            _listenPort = jsonPort;
+        }
     }
 
     public int GetConnectedClientCount()
