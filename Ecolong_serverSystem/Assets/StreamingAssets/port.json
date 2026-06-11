@@ -1,5 +1,7 @@
 {
     "com": "COM4",
     "baudLate": 19200,
-    "tcpPort": 5000
+    "tcpPort": 5000,
+    "maxClientCount": 3,
+    "autoStart": true
 }

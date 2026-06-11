@@ -1,3 +1,5 @@
+using System;
+using System.Collections.Generic;
 using TMPro;
 using UnityEngine;
 using UnityEngine.Serialization;
@@ -103,6 +105,25 @@ public class TcpDataTextBinder : MonoBehaviour
     [FormerlySerializedAs("seaLevelText")]
     [SerializeField] private TMP_Text _seaLevelText;
 
+    [Header("슬롯 증가 연출")]
+    [Tooltip("화력/수력/태양광/풍력/수소/전기/탄소/발전/친환경도/발전도 값이 증가할 때 목표값까지 슬롯처럼 점차 올라갑니다.")]
+    [SerializeField] private bool _useSlotRolling = true;
+    [Tooltip("증가 연출이 목표값에 도달하는 데 걸리는 시간(초). 0에 가까울수록 즉시 반영됩니다.")]
+    [SerializeField] private float _slotRollDuration = 0.6f;
+
+    // 슬롯 연출 대상별 현재 표시값/목표값을 추적합니다. 값 증가 시에만 점차 올라가고, 감소/초기화 시에는 즉시 반영합니다.
+    private readonly List<SlotEntry> _slotEntries = new List<SlotEntry>();
+
+    private class SlotEntry
+    {
+        public TMP_Text Text;
+        public Func<float, string> Formatter;
+        public float Displayed;
+        public float Target;
+        public float Speed;
+        public bool Initialized;
+    }
+
     private void Awake()
     {
         if (_aggregator == null)
@@ -130,6 +151,73 @@ public class TcpDataTextBinder : MonoBehaviour
             return;
 
         RefreshAllTexts();
+    }
+
+    // 슬롯 연출 대상들을 매 프레임 목표값 쪽으로 점차 이동시킵니다.
+    private void Update()
+    {
+        if (!_useSlotRolling || !Application.isPlaying)
+            return;
+
+        float deltaTime = Time.unscaledDeltaTime;
+
+        for (int i = 0; i < _slotEntries.Count; i++)
+        {
+            SlotEntry entry = _slotEntries[i];
+            if (!entry.Initialized || entry.Displayed >= entry.Target)
+                continue;
+
+            entry.Displayed = Mathf.MoveTowards(entry.Displayed, entry.Target, entry.Speed * deltaTime);
+
+            if (entry.Text != null && entry.Formatter != null)
+                entry.Text.text = entry.Formatter(entry.Displayed);
+        }
+    }
+
+    // 슬롯 연출 대상의 목표값을 갱신합니다. 값이 증가하면 _slotRollDuration 동안 점차 올라가고,
+    // 감소하거나 첫 적용일 때는 즉시 목표값으로 반영합니다.
+    private void ApplySlotValue(TMP_Text targetText, float value, Func<float, string> formatter)
+    {
+        if (targetText == null)
+            return;
+
+        // 에디트 모드이거나 연출을 끈 경우 즉시 반영합니다.
+        if (!_useSlotRolling || !Application.isPlaying)
+        {
+            targetText.text = formatter(value);
+            return;
+        }
+
+        SlotEntry entry = GetOrCreateSlotEntry(targetText);
+        entry.Formatter = formatter;
+        entry.Target = value;
+
+        if (!entry.Initialized || value <= entry.Displayed)
+        {
+            // 첫 적용/감소/동일값은 슬롯 연출 없이 즉시 반영합니다.
+            entry.Displayed = value;
+            entry.Initialized = true;
+            entry.Speed = 0f;
+            targetText.text = formatter(value);
+            return;
+        }
+
+        // 증가: 남은 거리를 목표 시간으로 나눠 일정 속도로 올라가게 합니다.
+        float remaining = entry.Target - entry.Displayed;
+        entry.Speed = remaining / Mathf.Max(0.01f, _slotRollDuration);
+    }
+
+    private SlotEntry GetOrCreateSlotEntry(TMP_Text targetText)
+    {
+        for (int i = 0; i < _slotEntries.Count; i++)
+        {
+            if (_slotEntries[i].Text == targetText)
+                return _slotEntries[i];
+        }
+
+        SlotEntry entry = new SlotEntry { Text = targetText };
+        _slotEntries.Add(entry);
+        return entry;
     }
 
     public void SetAggregator(TcpDataAggregator targetAggregator)
@@ -200,11 +288,11 @@ public class TcpDataTextBinder : MonoBehaviour
                 totals.hydrogen * _hydrogenEfficiency;
         }
         if (_totalEnergyProductionText != null)
-            _totalEnergyProductionText.text = string.Format(_totalEnergyFormat, totalProduction);
+            ApplySlotValue(_totalEnergyProductionText, totalProduction, v => string.Format(_totalEnergyFormat, Mathf.Round(v)));
 
-        UpdateTargetText(_electricEnergyText, "전기에너지", totals != null ? totals.electricCount : 0);
-        UpdateTargetText(_carbonText, "탄소", totals != null ? totals.totalCarbon : 0);
-        UpdateTargetText(_powerGenerationText, "발전", totals != null ? totals.powerGeneration : 0);
+        UpdateTargetText(_electricEnergyText, "전기에너지", totals != null ? totals.electricCount : 0, true);
+        UpdateTargetText(_carbonText, "탄소", totals != null ? totals.totalCarbon : 0, true);
+        UpdateTargetText(_powerGenerationText, "발전", totals != null ? totals.powerGeneration : 0, true);
         UpdateTargetText(_cityEcoScoreText, "도시친환경도", totals != null ? totals.cityEcoScore : 0);
         UpdateTargetText(_cityBuildingCountText, "도시 건물수", totals != null ? totals.totalCityBuildingCount : 0);
     }
@@ -215,7 +303,7 @@ public class TcpDataTextBinder : MonoBehaviour
             return;
 
         float production = count * efficiency;
-        targetText.text = string.Format(_productionFormat, production);
+        ApplySlotValue(targetText, production, v => string.Format(_productionFormat, Mathf.Round(v)));
     }
 
     private void RefreshEarthStateTexts(EarthStateSnapshot snapshot)
@@ -225,8 +313,8 @@ public class TcpDataTextBinder : MonoBehaviour
 
         int sustainability = snapshot.EcoLevel + snapshot.DevelopmentLevel;
         SetText(_sustainabilityLevelText, string.Format(_levelFormat, sustainability));
-        SetText(_developmentLevelText, string.Format(_levelFormat, snapshot.DevelopmentLevel));
-        SetText(_ecoLevelText, string.Format(_levelFormat, snapshot.EcoLevel));
+        ApplySlotValue(_developmentLevelText, snapshot.DevelopmentLevel, v => string.Format(_levelFormat, Mathf.RoundToInt(v)));
+        ApplySlotValue(_ecoLevelText, snapshot.EcoLevel, v => string.Format(_levelFormat, Mathf.RoundToInt(v)));
         SetText(_stateNameText, snapshot.StateName);
 
         SetText(_carbonPpmText, string.Format(_carbonPpmFormat, snapshot.CarbonPpm + 280f));
@@ -248,10 +336,16 @@ public class TcpDataTextBinder : MonoBehaviour
         RefreshEarthStateTexts(snapshot);
     }
 
-    private void UpdateTargetText(TMP_Text targetText, string label, int value)
+    private void UpdateTargetText(TMP_Text targetText, string label, int value, bool animate = false)
     {
         if (targetText == null)
             return;
+
+        if (animate)
+        {
+            ApplySlotValue(targetText, value, v => FormatValue(label, Mathf.RoundToInt(v)));
+            return;
+        }
 
         targetText.text = FormatValue(label, value);
     }

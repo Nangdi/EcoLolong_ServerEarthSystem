@@ -66,6 +66,10 @@ public class TcpDataAggregator : MonoBehaviour
     [SerializeField] private int _testAddCount = 1;
     [FormerlySerializedAs("sendMessageTestKey")]
     [SerializeField] private KeyCode _sendMessageTestKey = KeyCode.T;
+    [Tooltip("디버그용: 누르면 'VIDEO_UPLOAD|test.mp4' TCP 수신을 시뮬레이션합니다.")]
+    [SerializeField] private KeyCode _sendVideoTestKey = KeyCode.V;
+    [Tooltip("디버그 비디오 키 입력 시 시뮬레이션할 파일명입니다.")]
+    [SerializeField] private string _videoTestFileName = "test.mp4";
 
     [Header("문자열 전송")]
     [FormerlySerializedAs("defaultOutgoingMessage")]
@@ -129,8 +133,8 @@ public class TcpDataAggregator : MonoBehaviour
     // 씬 시작 시 설정값에 따라 TCP 서버를 자동으로 시작합니다.
     private void Start()
     {
-        // port.json에 저장된 tcpPort 값을 우선 적용합니다. JsonManager가 없으면 인스펙터 값을 그대로 사용합니다.
-        ApplyListenPortFromJson();
+        // port.json에 저장된 TCP 설정값을 우선 적용합니다. JsonManager가 없으면 인스펙터 값을 그대로 사용합니다.
+        ApplyTcpSettingsFromJson();
 
         if (_autoStart)
             StartServer();
@@ -203,6 +207,13 @@ public class TcpDataAggregator : MonoBehaviour
             AddData("태양광", _testAddCount);
         if (Input.GetKeyDown(_sendMessageTestKey))
             SendCurrentMessageToAllClients();
+
+        // 디버그용: VIDEO_UPLOAD|파일명 TCP 수신을 실제 파싱 경로 그대로 시뮬레이션합니다.
+        if (Input.GetKeyDown(_sendVideoTestKey))
+        {
+            string fileName = string.IsNullOrWhiteSpace(_videoTestFileName) ? "test.mp4" : _videoTestFileName.Trim();
+            EnqueueParsedLine($"{VideoReadyPrefix}|{fileName}", "LOCAL_TEST");
+        }
     }
 
     private void OnDestroy()
@@ -598,24 +609,44 @@ public class TcpDataAggregator : MonoBehaviour
         return _listenPort;
     }
 
-    // port.json의 tcpPort가 1~65535 범위의 유효한 값이면 인스펙터 값을 덮어쓰고 로그를 남깁니다.
-    private void ApplyListenPortFromJson()
+    // port.json의 TCP 설정값(tcpPort, maxClientCount, autoStart)을 검증한 뒤 유효하면 인스펙터 값을 덮어씁니다.
+    private void ApplyTcpSettingsFromJson()
     {
         JsonManager jsonManager = JsonManager.instance;
         if (jsonManager == null || jsonManager.portJson == null)
             return;
 
-        int jsonPort = jsonManager.portJson.tcpPort;
+        PortJson portJson = jsonManager.portJson;
+
+        // tcpPort: 1~65535 범위의 유효한 값일 때만 적용합니다.
+        int jsonPort = portJson.tcpPort;
         if (jsonPort <= 0 || jsonPort > 65535)
         {
             Debug.LogWarning($"port.json tcpPort 값이 유효 범위(1~65535)를 벗어났습니다: {jsonPort}. 인스펙터 값 {_listenPort}을 그대로 사용합니다.");
-            return;
         }
-
-        if (_listenPort != jsonPort)
+        else if (_listenPort != jsonPort)
         {
             Debug.Log($"port.json tcpPort 적용: {_listenPort} -> {jsonPort}");
             _listenPort = jsonPort;
+        }
+
+        // maxClientCount: 1 이상일 때만 적용합니다.
+        int jsonMaxClient = portJson.maxClientCount;
+        if (jsonMaxClient < 1)
+        {
+            Debug.LogWarning($"port.json maxClientCount 값이 1 미만입니다: {jsonMaxClient}. 인스펙터 값 {_maxClientCount}을 그대로 사용합니다.");
+        }
+        else if (_maxClientCount != jsonMaxClient)
+        {
+            Debug.Log($"port.json maxClientCount 적용: {_maxClientCount} -> {jsonMaxClient}");
+            _maxClientCount = jsonMaxClient;
+        }
+
+        // autoStart: 별도 범위 검증 없이 그대로 적용합니다.
+        if (_autoStart != portJson.autoStart)
+        {
+            Debug.Log($"port.json autoStart 적용: {_autoStart} -> {portJson.autoStart}");
+            _autoStart = portJson.autoStart;
         }
     }
 

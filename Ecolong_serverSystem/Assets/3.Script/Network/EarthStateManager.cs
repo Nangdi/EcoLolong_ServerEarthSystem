@@ -1,4 +1,5 @@
 using System;
+using System.Collections.Generic;
 using UnityEngine;
 using UnityEngine.Serialization;
 
@@ -22,6 +23,17 @@ public class EarthStateManager : MonoBehaviour
     private const int MinLevel = 1;
     private const float PreIndustrialCarbonPpm = 280f;
     private const float TemperatureLogFactor = 4.28f;
+
+    // 레벨은 항상 1~5의 5단계이므로 경계가 되는 임계값은 4개입니다.
+    private const int LevelThresholdCount = MaxLevel - MinLevel;
+
+    // 친환경도 판정 기본 임계값입니다. 설정창과 동일하게 1→5단계 순으로 정렬합니다.
+    // 인덱스 0~3이 "친환경도 1/2/3/4 단계 경계"에 대응합니다(탄소가 인덱스3 미만이면 5단계).
+    private static readonly int[] DefaultEcoCarbonThresholds = { 80, 55, 35, 15 };
+
+    // 발전도 판정 기본 임계값입니다. 설정창과 동일하게 1→5단계 순으로 정렬합니다.
+    // 인덱스 0~3이 "발전도 2/3/4/5 단계 경계"에 대응합니다(발전이 인덱스0 미만이면 1단계).
+    private static readonly int[] DefaultDevelopmentThresholds = { 160, 220, 280, 340 };
 
     // 사진 표를 그대로 옮긴 친환경도 단계별 탄소농도 변화량입니다.
     // 인덱스 0~4가 친환경도 1~5 단계에 대응합니다.
@@ -56,6 +68,12 @@ public class EarthStateManager : MonoBehaviour
     [FormerlySerializedAs("freezeStateWhenGameEnds")]
     [SerializeField] private bool _freezeStateWhenGameEnds = true;
 
+    [Header("레벨 판정 기준 (런타임 변경 가능)")]
+    [Tooltip("친환경도 임계값(1→5단계 순 4개). [0]=1단계 경계 ... [3]=4단계 경계.")]
+    [SerializeField] private int[] _ecoCarbonThresholds = { 80, 55, 35, 15 };
+    [Tooltip("발전도 임계값(1→5단계 순 4개). [0]=2단계 경계 ... [3]=5단계 경계.")]
+    [SerializeField] private int[] _developmentThresholds = { 160, 220, 280, 340 };
+
     [Header("기후 계산 상수")]
     [FormerlySerializedAs("carbonTokenRate")]
     [SerializeField] private float _carbonTokenRate = 0.001f;
@@ -85,6 +103,9 @@ public class EarthStateManager : MonoBehaviour
 
         Instance = this;
 
+        _ecoCarbonThresholds = NormalizeThresholds(_ecoCarbonThresholds, DefaultEcoCarbonThresholds);
+        _developmentThresholds = NormalizeThresholds(_developmentThresholds, DefaultDevelopmentThresholds);
+
         if (_aggregator == null)
             _aggregator = TcpDataAggregator.Instance;
 
@@ -96,6 +117,13 @@ public class EarthStateManager : MonoBehaviour
     {
         if (Instance == this)
             Instance = null;
+    }
+
+    private void Start()
+    {
+        // JsonManager가 디스크에서 불러온 임계값을 시작 시점에 반영합니다.
+        // (Awake 순서에 의존하지 않도록 Start에서 적용)
+        ApplyFromSettings();
     }
 
     private void OnEnable()
@@ -117,6 +145,8 @@ public class EarthStateManager : MonoBehaviour
         _carbonTokenRate = Mathf.Max(0f, _carbonTokenRate);
         _arcticIceFactor = Mathf.Max(0f, _arcticIceFactor);
         _seaLevelFactor = Mathf.Max(0f, _seaLevelFactor);
+        _ecoCarbonThresholds = NormalizeThresholds(_ecoCarbonThresholds, DefaultEcoCarbonThresholds);
+        _developmentThresholds = NormalizeThresholds(_developmentThresholds, DefaultDevelopmentThresholds);
         RefreshState();
     }
 
@@ -248,36 +278,140 @@ public class EarthStateManager : MonoBehaviour
             StateChanged?.Invoke(_currentState);
     }
 
-    public static int CalculateEcoLevel(int carbonCount, int ecoOffset = 0)
+    public int CalculateEcoLevel(int carbonCount, int ecoOffset = 0)
     {
+        // 임계값 배열은 설정창과 동일하게 1→5단계 순으로 저장됩니다([0]=1단계 경계 ... [3]=4단계 경계).
+        // 판정은 레벨 5(최고)부터 내려가므로 인덱스를 [3]→[0] 순으로 읽습니다.
         int baseLevel;
 
-        if (carbonCount >= 80)
-            baseLevel = 1;
-        else if (carbonCount >= 55)
-            baseLevel = 2;
-        else if (carbonCount >= 35)
-            baseLevel = 3;
-        else if (carbonCount >= 15)
-            baseLevel = 4;
-        else
+        if (carbonCount < _ecoCarbonThresholds[3])
             baseLevel = 5;
+        else if (carbonCount < _ecoCarbonThresholds[2])
+            baseLevel = 4;
+        else if (carbonCount < _ecoCarbonThresholds[1])
+            baseLevel = 3;
+        else if (carbonCount < _ecoCarbonThresholds[0])
+            baseLevel = 2;
+        else
+            baseLevel = 1;
 
         return Mathf.Clamp(baseLevel + ecoOffset, MinLevel, MaxLevel);
     }
 
-    public static int CalculateDevelopmentLevel(int powerGenerationCount)
+    public int CalculateDevelopmentLevel(int powerGenerationCount)
     {
-        if (powerGenerationCount >= 340)
+        // 임계값 배열은 설정창과 동일하게 1→5단계 순으로 저장됩니다([0]=2단계 경계 ... [3]=5단계 경계).
+        // 판정은 레벨 5(최고)부터 내려가므로 인덱스를 [3]→[0] 순으로 읽습니다.
+        if (powerGenerationCount >= _developmentThresholds[3])
             return 5;
-        if (powerGenerationCount >= 280)
+        else if (powerGenerationCount >= _developmentThresholds[2])
             return 4;
-        if (powerGenerationCount >= 220)
+        else if (powerGenerationCount >= _developmentThresholds[1])
             return 3;
-        if (powerGenerationCount >= 160)
+        else if (powerGenerationCount >= _developmentThresholds[0])
             return 2;
+        else
+            return 1;
+    }
 
-        return 1;
+    // 현재 적용 중인 친환경도/발전도 임계값을 읽기 전용으로 노출합니다.
+    public IReadOnlyList<int> EcoCarbonThresholds => _ecoCarbonThresholds;
+    public IReadOnlyList<int> DevelopmentThresholds => _developmentThresholds;
+
+    // JsonManager에 저장된 설정값(ecoCarbonThresholds/developmentThresholds)을 읽어 즉시 적용합니다.
+    // 게임 시작 시점과 ESC 설정창 저장 직후에 호출되어 디스크 설정과 런타임 상태를 일치시킵니다.
+    public void ApplyFromSettings()
+    {
+        JsonManager json = JsonManager.instance != null ? JsonManager.instance : FindObjectOfType<JsonManager>();
+        if (json == null || json.gameSettingData == null)
+            return;
+
+        GameSettingData data = json.gameSettingData;
+        _ecoCarbonThresholds = NormalizeThresholds(data.ecoCarbonThresholds, DefaultEcoCarbonThresholds);
+        _developmentThresholds = NormalizeThresholds(data.developmentThresholds, DefaultDevelopmentThresholds);
+
+        // 디스크 값에 맞춰 GameSettingData도 보정된 배열로 되돌려, UI/저장 값이 항상 4개를 유지하게 합니다.
+        data.ecoCarbonThresholds = (int[])_ecoCarbonThresholds.Clone();
+        data.developmentThresholds = (int[])_developmentThresholds.Clone();
+
+        RefreshState();
+    }
+
+    // 친환경도 임계값 전체를 런타임에 교체합니다(내림차순 4개). 교체 후 상태를 즉시 재계산합니다.
+    public void SetEcoCarbonThresholds(params int[] thresholds)
+    {
+        if (!TryApplyThresholds(ref _ecoCarbonThresholds, thresholds))
+            return;
+
+        RefreshState();
+    }
+
+    // 발전도 임계값 전체를 런타임에 교체합니다(내림차순 4개). 교체 후 상태를 즉시 재계산합니다.
+    public void SetDevelopmentThresholds(params int[] thresholds)
+    {
+        if (!TryApplyThresholds(ref _developmentThresholds, thresholds))
+            return;
+
+        RefreshState();
+    }
+
+    // 친환경도 임계값을 인덱스 단위로 하나만 변경합니다(0=1단계 경계 ... 3=4단계 경계).
+    public void SetEcoCarbonThreshold(int index, int value)
+    {
+        if (!TrySetThresholdAt(_ecoCarbonThresholds, index, value))
+            return;
+
+        RefreshState();
+    }
+
+    // 발전도 임계값을 인덱스 단위로 하나만 변경합니다(0=5단계 경계 ... 3=2단계 경계).
+    public void SetDevelopmentThreshold(int index, int value)
+    {
+        if (!TrySetThresholdAt(_developmentThresholds, index, value))
+            return;
+
+        RefreshState();
+    }
+
+    private static bool TryApplyThresholds(ref int[] target, int[] thresholds)
+    {
+        if (thresholds == null || thresholds.Length != LevelThresholdCount)
+        {
+            Debug.LogWarning($"[EarthStateManager] 임계값은 정확히 {LevelThresholdCount}개여야 합니다. 변경을 무시합니다.");
+            return false;
+        }
+
+        target = (int[])thresholds.Clone();
+        return true;
+    }
+
+    private static bool TrySetThresholdAt(int[] target, int index, int value)
+    {
+        if (target == null || index < 0 || index >= target.Length)
+        {
+            Debug.LogWarning($"[EarthStateManager] 임계값 인덱스 {index}가 범위를 벗어났습니다. 변경을 무시합니다.");
+            return false;
+        }
+
+        target[index] = value;
+        return true;
+    }
+
+    // 인스펙터에서 배열을 비우거나 길이를 바꿔도 항상 4개를 유지하도록 보정합니다.
+    private static int[] NormalizeThresholds(int[] thresholds, int[] defaults)
+    {
+        if (thresholds != null && thresholds.Length == LevelThresholdCount)
+            return thresholds;
+
+        int[] normalized = (int[])defaults.Clone();
+        if (thresholds != null)
+        {
+            int copyCount = Mathf.Min(thresholds.Length, LevelThresholdCount);
+            for (int i = 0; i < copyCount; i++)
+                normalized[i] = thresholds[i];
+        }
+
+        return normalized;
     }
 
     public float CalculateCarbonPpmChangePerSecond(int ecoLevel, int developmentLevel, int carbonTokenCount)

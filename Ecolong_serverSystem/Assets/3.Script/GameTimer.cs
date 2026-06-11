@@ -134,6 +134,16 @@ public class GameTimer : MonoBehaviour
         settingGameScale = scale;
     }
 
+    // 타이머의 정규화 진행도(0~1)를 반환합니다. 리플레이 동영상이 타이머에 맞춰 따라가도록 동기화하는 기준값입니다.
+    public float GetNormalizedProgress()
+    {
+        float baseTime = targetTime > 0f ? targetTime : gameTime;
+        if (baseTime <= 0f)
+            return 0f;
+
+        return Mathf.Clamp01(CurrentTime / baseTime);
+    }
+
     public float GetCurrentTime()
     {
         return CurrentTime;

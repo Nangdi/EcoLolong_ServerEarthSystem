@@ -145,7 +145,7 @@ public class GameEventLogUI : MonoBehaviour
             case "CARBON":
                 return count > 0 ? $"- 탄소 토큰 + {count}개" : null;
             case "POWER_GENERATION":
-                return count > 0 ? $"- 발전 토큰 + {count}개" : null;
+                return count > 0 ? $"- 발달 토큰 + {count}개" : null;
 
             case "BUILDING":
             {

@@ -9,6 +9,24 @@ public class GameSettingData
     public bool useUnityOnTop;
     // 게임 플레이 중 GameTimer/그래프 갱신 속도. 1이면 실시간, 60이면 1초당 1분이 흐릅니다.
     public float gameTimeScale = 1f;
+
+    // ----- DualMonitorSpan (ESC 설정창에서 실시간 변경/적용) -----
+    // 듀얼 모니터 스팬 창을 적용할지 여부.
+    public bool dualMonitorSpan = true;
+    // 테두리 없는(borderless) 창으로 강제할지 여부.
+    public bool dualMonitorBorderless = true;
+    // true면 아래 수동 해상도/원점을 사용, false면 가상 화면(모니터 합산)을 자동 인식.
+    public bool dualMonitorManual = false;
+    public int dualMonitorWidth = 3840;
+    public int dualMonitorHeight = 1080;
+    public int dualMonitorOriginX = 0;
+    public int dualMonitorOriginY = 0;
+
+    // ----- 지구상태 레벨 판정 기준 (ESC 설정창에서 변경/저장, 1→5단계 순으로 정렬) -----
+    // 친환경도: [0]=1단계 경계 ... [3]=4단계 경계. 탄소가 [3] 미만이면 5단계, [0] 이상이면 1단계.
+    public int[] ecoCarbonThresholds = { 80, 55, 35, 15 };
+    // 발전도: [0]=2단계 경계 ... [3]=5단계 경계. 발전이 [3] 이상이면 5단계, [0] 미만이면 1단계.
+    public int[] developmentThresholds = { 160, 220, 280, 340 };
 }
 
 public class GameDynamicData
@@ -21,6 +39,10 @@ public class PortJson
     public int baudLate = 19200;
     // 서버가 수신 대기할 TCP 포트입니다. TcpDataAggregator.Start에서 이 값을 사용해 listener를 띄웁니다.
     public int tcpPort = 5000;
+    // 동시에 접속할 수 있는 TCP 클라이언트의 최대 수입니다.
+    public int maxClientCount = 3;
+    // 씬 시작 시 TCP 서버를 자동으로 시작할지 여부입니다.
+    public bool autoStart = true;
 }
 
 public class VideoSettingJson

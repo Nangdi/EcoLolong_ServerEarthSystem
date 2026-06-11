@@ -118,6 +118,15 @@ public class GameSettingsPanelUI : MonoBehaviour
         if (GameManager.Instance != null)
             GameManager.Instance.SetGameTimeScale(_jsonManager.gameSettingData.gameTimeScale);
 
+        // 저장된 DualMonitorSpan 설정을 즉시 스팬 창에 반영합니다(실시간 적용).
+        DualMonitorSpanController spanController = FindObjectOfType<DualMonitorSpanController>();
+        if (spanController != null)
+            spanController.ApplyFromSettings();
+
+        // 저장된 지구상태 레벨 판정 임계값을 즉시 EarthStateManager에 반영합니다(실시간 적용).
+        if (EarthStateManager.Instance != null)
+            EarthStateManager.Instance.ApplyFromSettings();
+
         Debug.Log($"Game setting data saved: {_jsonManager.GameDataPath}");
     }
 

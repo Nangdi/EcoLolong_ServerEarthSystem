@@ -8,4 +8,7 @@ EditorBuildSettings:
   - enabled: 1
     path: Assets/1.Scene/GraphR&D.unity
     guid: 234fcf86acf13394eb55a8ccdabeebe2
+  - enabled: 0
+    path: Assets/1.Scene/VideoSenderScene.unity
+    guid: 79aca321cbb0eb741ba2e9a682940f2b
   m_configObjects: {}

@@ -63,10 +63,51 @@ public class DualMonitorSpanController : MonoBehaviour
 
     private void Start()
     {
+        // ESC 설정창(GameSettingData)에 저장된 값을 우선 반영한 뒤 적용합니다.
+        LoadFromGameSettings();
+
         if (!_applySpanInBuild || Application.isEditor)
             return;
 
         ApplySpanWindow();
+    }
+
+    // ESC 설정창에서 Save가 눌릴 때 호출됩니다. 변경된 설정을 읽어 즉시 스팬 창에 반영합니다.
+    public void ApplyFromSettings()
+    {
+        LoadFromGameSettings();
+
+        if (!_applySpanInBuild)
+        {
+            Debug.Log("[DualMonitorSpan] dualMonitorSpan=false 이므로 스팬 창을 적용하지 않습니다.");
+            return;
+        }
+
+        if (Application.isEditor)
+        {
+            // 에디터 활성 창은 Unity 에디터 본체라 창 조작을 건너뜁니다(빌드에서만 동작).
+            Debug.Log("[DualMonitorSpan] 에디터에서는 스팬 창이 적용되지 않습니다(빌드에서만 동작).");
+            return;
+        }
+
+        ApplySpanWindow();
+    }
+
+    // JsonManager의 GameSettingData 값으로 내부 설정을 동기화합니다. JsonManager가 없으면 인스펙터 값을 그대로 둡니다.
+    private void LoadFromGameSettings()
+    {
+        JsonManager jsonManager = JsonManager.instance;
+        if (jsonManager == null || jsonManager.gameSettingData == null)
+            return;
+
+        GameSettingData settings = jsonManager.gameSettingData;
+        _applySpanInBuild = settings.dualMonitorSpan;
+        _forceBorderlessWindow = settings.dualMonitorBorderless;
+        _resolutionMode = settings.dualMonitorManual ? ResolutionMode.Manual : ResolutionMode.Auto;
+        _manualWidth = settings.dualMonitorWidth;
+        _manualHeight = settings.dualMonitorHeight;
+        _manualOriginX = settings.dualMonitorOriginX;
+        _manualOriginY = settings.dualMonitorOriginY;
     }
 
     public void ApplySpanWindow()
