@@ -1,6 +1,7 @@
 using System.Collections;
 using System.Collections.Generic;
 using System.Threading;
+using TMPro;
 using UnityEngine;
 using UnityEngine.Serialization;
 
@@ -60,11 +61,20 @@ public class ResourceGraphs : MonoBehaviour
     [FormerlySerializedAs("maxPoint")]
     [SerializeField] private Transform _maxPoint;
 
+    [Header("현재 값 표시")]
+    [Tooltip("리플레이/플레이 중 그래프의 현재(마지막으로 그려진) 토큰량을 표시할 텍스트입니다. 비워두면 표시하지 않습니다.")]
+    [SerializeField] private TMP_Text _currentValueText;
+    [Tooltip("현재 토큰량 숫자 뒤에 붙일 단위 텍스트입니다. 예: \"개\"")]
+    [SerializeField] private string _currentValueSuffix = "개";
+
     [Header("디버그")]
     [FormerlySerializedAs("isGraphMappingDebug")]
     [SerializeField] private bool _isGraphMappingDebug = true;
     [FormerlySerializedAs("isReplayGraph")]
     [SerializeField] private bool _isReplayGraph = false;
+
+    // 가장 최근에 그려진 그래프 포인트의 값(현재 토큰량)입니다. 외부에서도 읽을 수 있습니다.
+    public float CurrentValue { get; private set; }
 
     private int _tempValue;
     private Coroutine _recordCycleCoroutine;
@@ -143,6 +153,7 @@ public class ResourceGraphs : MonoBehaviour
         {
             _lineRenderer.positionCount = 0;
             ClearFillMesh();
+            UpdateCurrentValueText(0f);
             return;
         }
 
@@ -150,10 +161,17 @@ public class ResourceGraphs : MonoBehaviour
         Vector3 size = _maxPoint.position - _origin.position;
         List<Vector3> renderedPositions = new List<Vector3>();
 
+        // 현재 시각까지 실제로 그려진 마지막 포인트의 값을 현재 토큰량으로 사용합니다.
+        float lastDrawnValue = currentPoints[0].value;
+        bool anyDrawn = false;
+
         for (int i = 0; i < currentPoints.Count; i++)
         {
             if (currentPoints[i].time > currentTime)
                 break;
+
+            lastDrawnValue = currentPoints[i].value;
+            anyDrawn = true;
 
             // sharedScale이 있으면 공유 max에 보고, 없으면 로컬 max만 갱신
             if (_sharedScale != null)
@@ -179,6 +197,16 @@ public class ResourceGraphs : MonoBehaviour
         }
 
         UpdateFillMesh(renderedPositions);
+        UpdateCurrentValueText(anyDrawn ? lastDrawnValue : 0f);
+    }
+
+    // 현재(마지막으로 그려진) 토큰량을 저장하고, 연결된 텍스트가 있으면 갱신합니다.
+    private void UpdateCurrentValueText(float value)
+    {
+        CurrentValue = value;
+
+        if (_currentValueText != null)
+            _currentValueText.text = Mathf.RoundToInt(value).ToString() + _currentValueSuffix;
     }
 
     // 그래프를 완전히 초기화합니다.

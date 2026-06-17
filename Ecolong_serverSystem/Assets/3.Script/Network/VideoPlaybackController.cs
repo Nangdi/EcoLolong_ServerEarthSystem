@@ -343,7 +343,7 @@ public class VideoPlaybackController : MonoBehaviour
         Debug.Log("[VideoPlayback] R 키 입력 / 재생 시작");
     }
 
-    // 타이머가 0→targetTime 까지 흐르는 실시간 길이에 맞춰 동영상 전체 길이가 소모되도록 재생 속도를 설정합니다.
+    // 타이머가 0→gameTime 까지 흐르는 실시간 길이에 맞춰 동영상 전체 길이가 소모되도록 재생 속도를 설정합니다.
     private void ApplyPlaybackSpeedFromTimer()
     {
         GameTimer timer = GameTimer.Instance;
@@ -352,7 +352,7 @@ public class VideoPlaybackController : MonoBehaviour
 
         double length = _videoPlayer.length;
         float timerSpeed = Mathf.Max(0.0001f, timer.settingGameScale);
-        float timerRealDuration = timer.targetTime / timerSpeed; // 타이머가 끝까지 흐르는 데 걸리는 실제 시간(초)
+        float timerRealDuration = timer.gameTime / timerSpeed; // 타이머가 끝까지 흐르는 데 걸리는 실제 시간(초)
         if (length <= 0d || timerRealDuration <= 0f)
             return;
 

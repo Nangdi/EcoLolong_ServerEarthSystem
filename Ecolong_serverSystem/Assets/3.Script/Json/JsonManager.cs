@@ -27,6 +27,11 @@ public class GameSettingData
     public int[] ecoCarbonThresholds = { 80, 55, 35, 15 };
     // 발전도: [0]=2단계 경계 ... [3]=5단계 경계. 발전이 [3] 이상이면 5단계, [0] 미만이면 1단계.
     public int[] developmentThresholds = { 160, 220, 280, 340 };
+
+    // ----- 도시친환경도(cityEcoScore) 기반 친환경도 보정 기준 -----
+    // cityEcoScore가 [상한] 이상이면 친환경도 +1, [하한] 이하이면 -1, 그 사이면 0.
+    public int cityEcoOffsetUpperThreshold = 20;
+    public int cityEcoOffsetLowerThreshold = -20;
 }
 
 public class GameDynamicData

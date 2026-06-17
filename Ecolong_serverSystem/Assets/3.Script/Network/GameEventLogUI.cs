@@ -45,6 +45,7 @@ public class GameEventLogUI : MonoBehaviour
 
     private readonly Queue<TMP_Text> _lines = new Queue<TMP_Text>();
     private bool _isSubscribed;
+    private bool _isGameSubscribed;
     // BUILDING / CARBON_CAPTURE는 누적값으로 전송되므로 증분만 로그에 띄우기 위해 직전 값을 캐싱합니다.
     private int _lastBuildingCount;
     private int _lastCaptureCarbon;
@@ -68,34 +69,53 @@ public class GameEventLogUI : MonoBehaviour
 
     private void Update()
     {
-        if (!_isSubscribed)
+        if (!_isSubscribed || !_isGameSubscribed)
             TrySubscribe();
     }
 
     private void TrySubscribe()
     {
-        if (_isSubscribed)
-            return;
+        if (!_isSubscribed)
+        {
+            if (_aggregator == null)
+                _aggregator = TcpDataAggregator.Instance;
 
-        if (_aggregator == null)
-            _aggregator = TcpDataAggregator.Instance;
+            if (_aggregator != null)
+            {
+                _aggregator.DataReceived += OnDataReceived;
+                _aggregator.TotalsChanged += OnTotalsChanged;
+                _isSubscribed = true;
+            }
+        }
 
-        if (_aggregator == null)
-            return;
-
-        _aggregator.DataReceived += OnDataReceived;
-        _aggregator.TotalsChanged += OnTotalsChanged;
-        _isSubscribed = true;
+        // 게임 시작 이벤트는 증분 비교 기준(baseline) 초기화에 사용합니다. GameManager가 늦게 생성돼도 반복 시도합니다.
+        if (!_isGameSubscribed && GameManager.Instance != null)
+        {
+            GameManager.Instance.OnGameStart += OnGameStart;
+            _isGameSubscribed = true;
+        }
     }
 
     private void Unsubscribe()
     {
-        if (!_isSubscribed || _aggregator == null)
-            return;
-
-        _aggregator.DataReceived -= OnDataReceived;
-        _aggregator.TotalsChanged -= OnTotalsChanged;
+        if (_isSubscribed && _aggregator != null)
+        {
+            _aggregator.DataReceived -= OnDataReceived;
+            _aggregator.TotalsChanged -= OnTotalsChanged;
+        }
         _isSubscribed = false;
+
+        if (_isGameSubscribed && GameManager.Instance != null)
+            GameManager.Instance.OnGameStart -= OnGameStart;
+        _isGameSubscribed = false;
+    }
+
+    // 게임 시작마다 증분 비교 기준을 초기화합니다. 이렇게 하지 않으면 직전 회차의 누적 캐시가 남아
+    // 새 회차 첫 BUILDING/CARBON_CAPTURE 수신에서 실제 변화가 없는데도 잘못된 로그가 뜨거나 누락됩니다.
+    private void OnGameStart()
+    {
+        _lastBuildingCount = 0;
+        _lastCaptureCarbon = 0;
     }
 
     // 게임 리셋 등으로 누적값이 캐시보다 작아지면 캐시도 같이 내려서 다음 증분 로그가 정확하게 잡히게 합니다.
@@ -155,7 +175,7 @@ public class GameEventLogUI : MonoBehaviour
                 if (delta <= 0)
                     return null;
 
-                return $"- 도시 건물 +{delta}채 건설";
+                return $"- 건물 {delta}채 건설";
             }
 
             case "CARBON_CAPTURE":

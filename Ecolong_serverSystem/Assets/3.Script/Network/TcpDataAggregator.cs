@@ -174,8 +174,16 @@ public class TcpDataAggregator : MonoBehaviour
     {
         bool totalsChanged = false;
 
+        // 게임 플레이 중일 때만 수신 패킷을 누적합니다.
+        // Ready/TimeOut(리플레이 대기)/Ended 등에서는 큐만 비워 다음 게임에 이월되지 않게 하고,
+        // 누적값은 초기화 상태(0)를 유지해 리플레이 대기 화면에서 토큰 갯수가 0으로 보이도록 합니다.
+        bool accumulate = GameManager.Instance == null || GameManager.Instance.CurrentGameState == GameState.Playing;
+
         while (_receivedQueue.TryDequeue(out TcpDataReceivedInfo packet))
         {
+            if (!accumulate)
+                continue;
+
             if (!_energyTotals.AddValue(packet.CanonicalName, packet.Count))
             {
                 AddRecentMessage($"[경고] 지원하지 않는 키 / Raw: {packet.RawName} / Canonical: {packet.CanonicalName} / Remote: {packet.RemoteEndPoint}");

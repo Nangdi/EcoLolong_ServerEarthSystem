@@ -51,14 +51,6 @@ public class EndPanelController : MonoBehaviour
             SetActive(_endPanel2, false);
             SetActive(_scene2Canvas, false);
         }
-        if (Input.GetKeyDown(KeyCode.R ) && GameManager.Instance.CurrentGameState == GameState.Ended)
-        {
-            GameManager gameManager = GameManager.Instance;
-            if (gameManager != null)
-            {
-                SetActive(_endPanel2, false);
-            }
-        }
     }
 
     private void SubscribeEvents()
@@ -121,6 +113,14 @@ public class EndPanelController : MonoBehaviour
 
         SetActive(_endPanel1, false);
         SetActive(_scene2Canvas, true);
+    }
+
+    // 강제 초기화(F5) 시 GameManager가 호출합니다. 상태 조건 없이 모든 패널을 닫습니다.
+    public void ForceCloseAllPanels()
+    {
+        SetActive(_endPanel1, false);
+        SetActive(_endPanel2, false);
+        SetActive(_scene2Canvas, false);
     }
 
     private static void SetActive(GameObject panel, bool isActive)

@@ -71,7 +71,7 @@ public class EarthStateGraphBinder : MonoBehaviour
         if (_temperatureGraph != null)
             _temperatureGraph.AddPoint(snapshot.TemperatureDeltaC);
         if (_carbonGraph != null)
-            _carbonGraph.AddPoint(snapshot.CarbonCount);
+            _carbonGraph.AddPoint(snapshot.CurrentCarbon);
         if (_electricityGraph != null)
             _electricityGraph.AddPoint(snapshot.ElectricCount);
         if (_powerGenerationGraph != null)

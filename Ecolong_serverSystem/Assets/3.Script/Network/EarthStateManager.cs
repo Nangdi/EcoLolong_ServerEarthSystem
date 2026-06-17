@@ -58,9 +58,15 @@ public class EarthStateManager : MonoBehaviour
     [SerializeField] private TcpDataAggregator _aggregator;
 
     [Header("친환경도 보정")]
+    // 도시친환경도(cityEcoScore)로부터 매 RefreshState마다 자동 계산되는 보정값입니다(-1/0/+1).
     [Range(-1, 1)]
     [FormerlySerializedAs("softwareEcoOffset")]
     [SerializeField] private int _softwareEcoOffset;
+
+    [Tooltip("cityEcoScore가 이 값 이상이면 친환경도 +1 보정.")]
+    [SerializeField] private int _cityEcoOffsetUpperThreshold = 20;
+    [Tooltip("cityEcoScore가 이 값 이하이면 친환경도 -1 보정.")]
+    [SerializeField] private int _cityEcoOffsetLowerThreshold = -20;
 
     [Header("게임 연동")]
     [FormerlySerializedAs("resetAggregatorOnGameStart")]
@@ -73,6 +79,11 @@ public class EarthStateManager : MonoBehaviour
     [SerializeField] private int[] _ecoCarbonThresholds = { 80, 55, 35, 15 };
     [Tooltip("발전도 임계값(1→5단계 순 4개). [0]=2단계 경계 ... [3]=5단계 경계.")]
     [SerializeField] private int[] _developmentThresholds = { 160, 220, 280, 340 };
+
+    [Header("리소스 속도 보정")]
+    [Tooltip("리소스(탄소 ppm) 변화량 테이블이 튜닝된 기준 게임 길이(초). 기본 900초=15분. " +
+             "실제 gameTime이 이와 달라도 게임 종료 시 누적 변화량이 동일하게 유지되도록 속도를 자동 보정합니다.")]
+    [SerializeField] private float _balanceReferenceSeconds = 900f;
 
     [Header("기후 계산 상수")]
     [FormerlySerializedAs("carbonTokenRate")]
@@ -142,6 +153,7 @@ public class EarthStateManager : MonoBehaviour
     private void OnValidate()
     {
         _softwareEcoOffset = Mathf.Clamp(_softwareEcoOffset, -1, 1);
+        _balanceReferenceSeconds = Mathf.Max(1f, _balanceReferenceSeconds);
         _carbonTokenRate = Mathf.Max(0f, _carbonTokenRate);
         _arcticIceFactor = Mathf.Max(0f, _arcticIceFactor);
         _seaLevelFactor = Mathf.Max(0f, _seaLevelFactor);
@@ -162,7 +174,15 @@ public class EarthStateManager : MonoBehaviour
             // 그렇지 않으면 gameTimeScale=60일 때 타이머는 15초만에 끝나지만 ppm은 15초치만 누적돼 변화가 거의 없습니다.
             float scale = GameTimer.Instance != null ? GameTimer.Instance.settingGameScale : 1f;
             if (scale <= 0f) scale = 1f;
-            RefreshState(Time.unscaledDeltaTime * scale);
+
+            // 변화량 테이블은 _balanceReferenceSeconds(기본 900초=15분) 길이를 기준으로 튜닝돼 있습니다.
+            // gameTime이 기준과 다르면 게임 종료 시점의 누적 변화량이 동일하게 유지되도록
+            // (기준 길이 / 실제 길이) 비율로 증가 속도를 동적으로 보정합니다.
+            // 예) gameTime=450초(7.5분)이면 보정계수=2배 → 절반의 시간에 15분치 총 변화량에 도달.
+            float gameTime = GameTimer.Instance != null ? GameTimer.Instance.gameTime : _balanceReferenceSeconds;
+            float lengthCompensation = gameTime > 0f ? _balanceReferenceSeconds / gameTime : 1f;
+
+            RefreshState(Time.unscaledDeltaTime * scale * lengthCompensation);
         }
     }
 
@@ -186,7 +206,7 @@ public class EarthStateManager : MonoBehaviour
             _aggregator = TcpDataAggregator.Instance;
 
         if (_resetAggregatorOnGameStart && _aggregator != null)
-            // _aggregator.ClearTotals();
+            _aggregator.ClearTotals();
 
         _currentState.ResetToDefaults();
         RefreshState();
@@ -238,8 +258,12 @@ public class EarthStateManager : MonoBehaviour
         int electricCount = totals != null ? totals.electricCount : 0;
         int currentCarbon = totals != null ? totals.totalCarbon - totals.captureCarbon : 0;
         int currentPowerGeneration = totals != null ? totals.currentPowerGeneration : 0;
+        int cityEcoScore = totals != null ? totals.cityEcoScore : 0;
 
-        int ecoLevel = CalculateEcoLevel(carbonCount, _softwareEcoOffset);
+        // 도시친환경도에 따라 친환경도 보정값(-1/0/+1)을 자동으로 결정합니다.
+        _softwareEcoOffset = CalculateEcoOffset(cityEcoScore);
+
+        int ecoLevel = CalculateEcoLevel(currentCarbon, _softwareEcoOffset);
         int developmentLevel = CalculateDevelopmentLevel(powerGenerationCount);
         string stateName = GetStateName(ecoLevel, developmentLevel);
         float carbonRatePerSecond = CalculateCarbonPpmChangePerSecond(ecoLevel, developmentLevel, carbonCount);
@@ -298,6 +322,17 @@ public class EarthStateManager : MonoBehaviour
         return Mathf.Clamp(baseLevel + ecoOffset, MinLevel, MaxLevel);
     }
 
+    // 도시친환경도(cityEcoScore)를 상/하한 임계값과 비교해 친환경도 보정값을 구합니다.
+    // 상한 이상이면 +1, 하한 이하이면 -1, 그 사이면 0입니다.
+    public int CalculateEcoOffset(int cityEcoScore)
+    {
+        if (cityEcoScore >= _cityEcoOffsetUpperThreshold)
+            return 1;
+        if (cityEcoScore <= _cityEcoOffsetLowerThreshold)
+            return -1;
+        return 0;
+    }
+
     public int CalculateDevelopmentLevel(int powerGenerationCount)
     {
         // 임계값 배열은 설정창과 동일하게 1→5단계 순으로 저장됩니다([0]=2단계 경계 ... [3]=5단계 경계).
@@ -329,6 +364,8 @@ public class EarthStateManager : MonoBehaviour
         GameSettingData data = json.gameSettingData;
         _ecoCarbonThresholds = NormalizeThresholds(data.ecoCarbonThresholds, DefaultEcoCarbonThresholds);
         _developmentThresholds = NormalizeThresholds(data.developmentThresholds, DefaultDevelopmentThresholds);
+        _cityEcoOffsetUpperThreshold = data.cityEcoOffsetUpperThreshold;
+        _cityEcoOffsetLowerThreshold = data.cityEcoOffsetLowerThreshold;
 
         // 디스크 값에 맞춰 GameSettingData도 보정된 배열로 되돌려, UI/저장 값이 항상 4개를 유지하게 합니다.
         data.ecoCarbonThresholds = (int[])_ecoCarbonThresholds.Clone();

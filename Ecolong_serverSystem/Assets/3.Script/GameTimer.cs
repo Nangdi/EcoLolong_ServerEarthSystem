@@ -27,8 +27,7 @@ public class GameTimer : MonoBehaviour
     [SerializeField] private float _currentTime;
 
     [Header("Time Range")]
-    public float gameTime = 900f; // 15분 = 900초
-    public float targetTime = 900;
+    public float gameTime = 900f; // 15분 = 900초. 타이머의 목표 시간(타임아웃 기준)으로도 그대로 사용됩니다.
     public float settingGameScale = 1f; // 게임 시간의 흐름을 조절하는 변수
     public bool isRePlay = false;
     public float CurrentTime
@@ -71,7 +70,7 @@ public class GameTimer : MonoBehaviour
         OnTimeChanged?.Invoke(_currentTime);
 
 
-        if (CurrentTime >= targetTime)
+        if (CurrentTime >= gameTime)
         {
             if (!isRePlay)
             {
@@ -104,23 +103,30 @@ public class GameTimer : MonoBehaviour
         {
             case GameState.Ready:
                 isRePlay = false;
-                targetTime = gameTime;
                 break;
             case GameState.Playing:
                 break;
             case GameState.TimeOut:
                 isRePlay = true;
-                targetTime = gameTime;
                 break;
             case GameState.Ended:
                 isRePlay = true;
-                targetTime = gameTime;
                 break;
         }
     }
     public void StopTimer()
     {
         IsRunning = false;
+    }
+
+    // 강제 타임아웃 키(F6)에서 호출됩니다. CurrentTime을 gameTime으로 끌어올려
+    // 다음 Update에서 자연 타임아웃과 완전히 동일한 경로(TimeOut 전환 → End 송신 → OnTimeOver)를 타게 합니다.
+    public void ForceTimeOver()
+    {
+        if (!IsRunning)
+            return;
+
+        CurrentTime = gameTime;
     }
 
     public void ResetTimer()
@@ -137,11 +143,10 @@ public class GameTimer : MonoBehaviour
     // 타이머의 정규화 진행도(0~1)를 반환합니다. 리플레이 동영상이 타이머에 맞춰 따라가도록 동기화하는 기준값입니다.
     public float GetNormalizedProgress()
     {
-        float baseTime = targetTime > 0f ? targetTime : gameTime;
-        if (baseTime <= 0f)
+        if (gameTime <= 0f)
             return 0f;
 
-        return Mathf.Clamp01(CurrentTime / baseTime);
+        return Mathf.Clamp01(CurrentTime / gameTime);
     }
 
     public float GetCurrentTime()
@@ -149,11 +154,10 @@ public class GameTimer : MonoBehaviour
         return CurrentTime;
     }
 
-    // 타이머 시작 전이거나 targetTime이 0이면 gameTime을 기준으로 잔여 시간을 계산합니다.
+    // gameTime을 기준으로 잔여 시간을 계산합니다.
     public float GetRemainingTime()
     {
-        float baseTime = targetTime > 0f ? targetTime : gameTime;
-        float remaining = baseTime - CurrentTime;
+        float remaining = gameTime - CurrentTime;
         return remaining > 0f ? remaining : 0f;
     }
     private void Timer_OnGameStart()

@@ -48,6 +48,12 @@ public class GameManager : MonoBehaviour
     [Header("Replay")]
     [FormerlySerializedAs("replayKey")]
     [SerializeField] private KeyCode _replayKey = KeyCode.R;
+
+    [Header("강제 상태이동 키")]
+    [Tooltip("현재 상태와 무관하게 클라이언트에 Ready를 송신하고 게임을 초기 상태로 되돌립니다.")]
+    [SerializeField] private KeyCode _forceReadyKey = KeyCode.F5;
+    [Tooltip("Playing 상태에서만 동작. 15분 경과와 동일한 경로로 즉시 TimeOut(End 송신 + 업로드 대기 패널)으로 이동합니다.")]
+    [SerializeField] private KeyCode _forceTimeOutKey = KeyCode.F6;
     [FormerlySerializedAs("replayTimerSpeed")]
     [SerializeField] private float _replayTimerSpeed = 15f;
     private void Awake()
@@ -140,6 +146,12 @@ public class GameManager : MonoBehaviour
     {
         _isVideoReady = false; // 새 게임 사이클이 시작되므로 비디오 업로드 수신 대기로 초기화
         tcpDataAggregator.SendStringToAllClients("Start");
+
+        // 게임 시작 직후, 클라이언트가 진행도/리소스 속도를 맞출 수 있도록 게임 길이(초)를 별도 라인으로 송신합니다.
+        // "GAMETIME:900" 형식으로 보냅니다.
+        if (GameTimer.Instance != null)
+            tcpDataAggregator.SendStringToAllClients($"GAMETIME:{Mathf.RoundToInt(GameTimer.Instance.gameTime)}");
+
         OnGameStart?.Invoke(); // 게임 시작 이벤트 호출
     }
     // 게임 타이머의 자동 종료(Playing→TimeOut, 리플레이 종료→Ended) 시점에 호출됩니다.
@@ -180,16 +192,12 @@ public class GameManager : MonoBehaviour
             }
         }
 
-        // R: TimeOut(비디오 업로드 완료 후) 또는 Ended 상태에서만 리플레이를 시작합니다.
+        // R: TimeOut(비디오 업로드 완료 후) 상태에서만 리플레이를 시작합니다.
+        // 리플레이가 끝난 Ended 상태에서는 R을 눌러도 다시 재생되지 않습니다. (E 키로 Ready 복귀)
         if (Input.GetKeyDown(_replayKey))
         {
             if (CurrentGameState == GameState.TimeOut && _isVideoReady)
             {
-                TriggerReplay();
-            }
-            else if (CurrentGameState == GameState.Ended)
-            {
-                SetGameState(GameState.TimeOut);
                 TriggerReplay();
             }
         }
@@ -206,6 +214,54 @@ public class GameManager : MonoBehaviour
                 tcpDataAggregator.SendStringToAllClients("Ready");
             }
         }
+
+        // F5(강제 초기화): 현재 상태와 무관하게 클라이언트에 Ready를 송신하고 게임을 초기 상태로 되돌립니다.
+        if (Input.GetKeyDown(_forceReadyKey))
+        {
+            ForceResetToReady();
+        }
+
+        // F6(강제 타임아웃): Playing 상태에서만, 타이머를 즉시 종료 지점으로 보내
+        // 자연 타임아웃과 동일한 경로(End 송신 + 엔드패널1 표시 + VIDEO_UPLOAD 대기)를 타게 합니다.
+        if (Input.GetKeyDown(_forceTimeOutKey))
+        {
+            if (CurrentGameState == GameState.Playing && GameTimer.Instance != null)
+            {
+                Debug.Log($"[ForceKey] 강제 타임아웃 ({_forceTimeOutKey})");
+                GameTimer.Instance.ForceTimeOver();
+            }
+        }
+    }
+
+    // 강제 초기화 키(F5)에서 호출됩니다. E 키의 Ready 복귀 동작을 상태 조건 없이 수행하되,
+    // 어떤 상태에서 눌려도 안전하도록 비디오 정지와 엔드패널 정리까지 함께 처리합니다.
+    private void ForceResetToReady()
+    {
+        Debug.Log($"[ForceKey] 강제 초기화 → Ready ({_forceReadyKey})");
+
+        // 1) 클라이언트 PC들에게 Ready 신호를 먼저 송신합니다.
+        if (tcpDataAggregator != null)
+            tcpDataAggregator.SendStringToAllClients("Ready");
+
+        // 2) 재생 중인 리플레이 비디오와 준비 코루틴을 중단합니다.
+        VideoPlaybackController[] videoControllers = FindObjectsOfType<VideoPlaybackController>();
+        for (int i = 0; i < videoControllers.Length; i++)
+            videoControllers[i].StopPlayback();
+
+        // 3) 타이머를 멈춘 뒤 Ready로 전환합니다. (SetGameState가 IsReplay 해제와 타이머 속도 복원을 담당)
+        if (GameTimer.Instance != null)
+            GameTimer.Instance.StopTimer();
+
+        SetGameState(GameState.Ready);
+        _isVideoReady = false;
+
+        // 4) 모든 UI 텍스트/타이머/그래프를 초기화합니다.
+        GameDataReset();
+
+        // 5) 엔드패널1/2와 Scene2 캔버스를 상태 조건 없이 모두 닫습니다.
+        EndPanelController[] endPanels = FindObjectsOfType<EndPanelController>();
+        for (int i = 0; i < endPanels.Length; i++)
+            endPanels[i].ForceCloseAllPanels();
     }
 
     // 게임 타이머가 종료된 직후, 리플레이가 시작되기 전 단계에서 호출합니다.
@@ -219,11 +275,17 @@ public class GameManager : MonoBehaviour
 
         // TcpDataAggregator → TotalsChanged로 TcpDataTextBinder의 발전/탄소/도시 텍스트 0으로 복귀
         if (tcpDataAggregator != null)
-            // tcpDataAggregator.ClearTotals();
+            tcpDataAggregator.ClearTotals();
 
         // EarthStateManager → StateChanged로 친환경도/발전도/상태명/탄소ppm/온도/얼음/해수면 텍스트 초기값으로 복귀
         if (EarthStateManager.Instance != null)
             EarthStateManager.Instance.ResetState();
+
+        // GameEventLogUI → 누적된 이벤트 로그 라인을 모두 비웁니다.
+        // TimeOut(게임 종료) 시점에도 호출되므로, 리플레이는 깨끗한 초기화 상태에서 대기하게 됩니다.
+        GameEventLogUI[] eventLogs = FindObjectsOfType<GameEventLogUI>();
+        for (int i = 0; i < eventLogs.Length; i++)
+            eventLogs[i].Clear();
     }
 
     // 모든 UI 데이터 텍스트와 그래프까지 처음 상태로 되돌리는 단일 진입점입니다.

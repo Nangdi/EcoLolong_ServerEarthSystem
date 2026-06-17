@@ -35,7 +35,9 @@
       "mcp__UnityMCP__validate_script",
       "PowerShell(Get-ChildItem *)",
       "PowerShell(Test-Path *)",
-      "Bash(git *)"
+      "Bash(git *)",
+      "Bash(dir \"%LOCALAPPDATA%\\\\UnityMCP\")",
+      "Bash(dir \"%LOCALAPPDATA%\\\\Programs\\\\UnityMCP\")"
     ]
   }
 }

@@ -93,6 +93,8 @@ MonoBehaviour:
   _origin: {fileID: 625082832513301031}
   _floor: {fileID: 6634026103256525007}
   _maxPoint: {fileID: 8902127092996841336}
+  _currentValueText: {fileID: 0}
+  _currentValueFormat: "\"{0:0}\uAC1C\" "
   _isGraphMappingDebug: 1
   _isReplayGraph: 0
 --- !u!120 &3493769947547645787
