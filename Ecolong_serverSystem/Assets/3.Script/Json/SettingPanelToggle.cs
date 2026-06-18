@@ -28,6 +28,25 @@ public class SettingPanelToggle : MonoBehaviour
         if (_settingPanel == null)
             return;
 
-        _settingPanel.SetActive(!_settingPanel.activeSelf);
+        bool nowActive = !_settingPanel.activeSelf;
+        _settingPanel.SetActive(nowActive);
+        UpdateCursorVisibility(nowActive);
+    }
+
+    // 설정창이 열리면 마우스를 보이게 하고, 닫히면 게임 기본 상태로 되돌립니다.
+    // 기본 상태는 UnityAlwaysOnTop과 동일하게 "빌드 + useUnityOnTop"일 때만 숨김입니다.
+    private void UpdateCursorVisibility(bool panelActive)
+    {
+        Cursor.visible = panelActive || ShouldShowCursorByDefault();
+    }
+
+    private static bool ShouldShowCursorByDefault()
+    {
+        if (Application.isEditor)
+            return true;
+
+        JsonManager json = JsonManager.instance;
+        bool hideCursor = json != null && json.gameSettingData != null && json.gameSettingData.useUnityOnTop;
+        return !hideCursor;
     }
 }

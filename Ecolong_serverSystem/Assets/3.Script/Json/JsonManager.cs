@@ -32,6 +32,10 @@ public class GameSettingData
     // cityEcoScore가 [상한] 이상이면 친환경도 +1, [하한] 이하이면 -1, 그 사이면 0.
     public int cityEcoOffsetUpperThreshold = 20;
     public int cityEcoOffsetLowerThreshold = -20;
+
+    // ----- 탄소농도(ppm) 변화 속도 가중치 -----
+    // 1=기본(1배율), 1보다 작으면 더 천천히, 크면 더 빠르게 오르거나 내립니다. (0이면 변화 정지)
+    public float carbonPpmSpeedMultiplier = 1f;
 }
 
 public class GameDynamicData

@@ -85,6 +85,12 @@ public class EarthStateManager : MonoBehaviour
              "실제 gameTime이 이와 달라도 게임 종료 시 누적 변화량이 동일하게 유지되도록 속도를 자동 보정합니다.")]
     [SerializeField] private float _balanceReferenceSeconds = 900f;
 
+    [Header("탄소농도 속도 가중치")]
+    [Tooltip("탄소농도(ppm) 변화 속도 배율입니다. 1=기본(1배율), 1보다 작으면 더 천천히, 크면 더 빠르게 오르거나 내립니다. " +
+             "친환경도/발전도/탄소토큰으로 계산된 매초 변화량 전체에 곱해집니다.")]
+    [Min(0f)]
+    [SerializeField] private float _carbonPpmSpeedMultiplier = 1f;
+
     [Header("기후 계산 상수")]
     [FormerlySerializedAs("carbonTokenRate")]
     [SerializeField] private float _carbonTokenRate = 0.001f;
@@ -153,6 +159,7 @@ public class EarthStateManager : MonoBehaviour
     private void OnValidate()
     {
         _softwareEcoOffset = Mathf.Clamp(_softwareEcoOffset, -1, 1);
+        _carbonPpmSpeedMultiplier = Mathf.Max(0f, _carbonPpmSpeedMultiplier);
         _balanceReferenceSeconds = Mathf.Max(1f, _balanceReferenceSeconds);
         _carbonTokenRate = Mathf.Max(0f, _carbonTokenRate);
         _arcticIceFactor = Mathf.Max(0f, _arcticIceFactor);
@@ -230,6 +237,19 @@ public class EarthStateManager : MonoBehaviour
         _currentState.ResetToDefaults();
         StateChanged?.Invoke(_currentState);
     }
+
+    // 탄소농도 변화 속도 가중치를 런타임에 변경합니다. 1=기본, 0이면 변화 정지, 1보다 크면 가속됩니다.
+    public void SetCarbonPpmSpeedMultiplier(float multiplier)
+    {
+        float clamped = Mathf.Max(0f, multiplier);
+        if (Mathf.Approximately(_carbonPpmSpeedMultiplier, clamped))
+            return;
+
+        _carbonPpmSpeedMultiplier = clamped;
+        RefreshState();
+    }
+
+    public float CarbonPpmSpeedMultiplier => _carbonPpmSpeedMultiplier;
 
     public void SetSoftwareEcoOffset(int offset)
     {
@@ -366,10 +386,12 @@ public class EarthStateManager : MonoBehaviour
         _developmentThresholds = NormalizeThresholds(data.developmentThresholds, DefaultDevelopmentThresholds);
         _cityEcoOffsetUpperThreshold = data.cityEcoOffsetUpperThreshold;
         _cityEcoOffsetLowerThreshold = data.cityEcoOffsetLowerThreshold;
+        _carbonPpmSpeedMultiplier = Mathf.Max(0f, data.carbonPpmSpeedMultiplier);
 
-        // 디스크 값에 맞춰 GameSettingData도 보정된 배열로 되돌려, UI/저장 값이 항상 4개를 유지하게 합니다.
+        // 디스크 값에 맞춰 GameSettingData도 보정된 값으로 되돌려, UI/저장 값이 항상 유효 범위를 유지하게 합니다.
         data.ecoCarbonThresholds = (int[])_ecoCarbonThresholds.Clone();
         data.developmentThresholds = (int[])_developmentThresholds.Clone();
+        data.carbonPpmSpeedMultiplier = _carbonPpmSpeedMultiplier;
 
         RefreshState();
     }
@@ -456,7 +478,8 @@ public class EarthStateManager : MonoBehaviour
         float ecoRate = EcoCarbonRateTable[Mathf.Clamp(ecoLevel, MinLevel, MaxLevel) - 1];
         float developmentRate = DevelopmentCarbonRateTable[Mathf.Clamp(developmentLevel, MinLevel, MaxLevel) - 1];
         float carbonTokenContribution = carbonTokenCount * _carbonTokenRate;
-        return ecoRate + developmentRate + carbonTokenContribution;
+        // 가중치(_carbonPpmSpeedMultiplier)로 탄소농도 변화 속도 전체를 한 번에 키우거나 줄입니다.
+        return (ecoRate + developmentRate + carbonTokenContribution) * _carbonPpmSpeedMultiplier;
     }
 
     public static float CalculateTemperatureDelta(float carbonPpm)

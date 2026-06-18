@@ -217,6 +217,8 @@ public class ResourceGraphs : MonoBehaviour
         if (_sharedScale != null) _sharedScale.ResetMax();
         _tempValue = 0;
         ClearFillMesh();
+        // 현재값 표시 텍스트(CurrentValueText)도 0으로 되돌립니다. (Ready 리셋 시 화면 잔상 제거)
+        UpdateCurrentValueText(0f);
     }
 
     // 기록은 유지한 채 화면에 보이는 그래프만 지웁니다.

@@ -61,6 +61,16 @@ public class DualMonitorSpanController : MonoBehaviour
         int cy,
         uint uFlags);
 
+    // 마지막으로 창에 실제 적용한 설정 스냅샷입니다. Save 때 값이 그대로면 창을 다시 배치하지 않습니다.
+    private bool _hasApplied;
+    private bool _appliedSpan;
+    private bool _appliedBorderless;
+    private ResolutionMode _appliedMode;
+    private int _appliedWidth;
+    private int _appliedHeight;
+    private int _appliedOriginX;
+    private int _appliedOriginY;
+
     private void Start()
     {
         // ESC 설정창(GameSettingData)에 저장된 값을 우선 반영한 뒤 적용합니다.
@@ -90,7 +100,40 @@ public class DualMonitorSpanController : MonoBehaviour
             return;
         }
 
+        // 듀얼모니터 설정이 직전 적용과 동일하면 창을 다시 배치하지 않습니다.
+        // (Save를 누를 때마다 화면 위치/크기가 흔들리는 것을 방지)
+        if (_hasApplied && !HasSpanConfigChanged())
+        {
+            Debug.Log("[DualMonitorSpan] 스팬 설정 변경 없음 → 창 재배치 생략.");
+            return;
+        }
+
         ApplySpanWindow();
+    }
+
+    // 현재 로드된 설정이 마지막으로 창에 적용한 스냅샷과 다른지 비교합니다.
+    private bool HasSpanConfigChanged()
+    {
+        return _appliedSpan != _applySpanInBuild
+            || _appliedBorderless != _forceBorderlessWindow
+            || _appliedMode != _resolutionMode
+            || _appliedWidth != _manualWidth
+            || _appliedHeight != _manualHeight
+            || _appliedOriginX != _manualOriginX
+            || _appliedOriginY != _manualOriginY;
+    }
+
+    // 창 적용에 성공한 직후 현재 설정을 스냅샷으로 저장합니다.
+    private void CaptureAppliedConfig()
+    {
+        _appliedSpan = _applySpanInBuild;
+        _appliedBorderless = _forceBorderlessWindow;
+        _appliedMode = _resolutionMode;
+        _appliedWidth = _manualWidth;
+        _appliedHeight = _manualHeight;
+        _appliedOriginX = _manualOriginX;
+        _appliedOriginY = _manualOriginY;
+        _hasApplied = true;
     }
 
     // JsonManager의 GameSettingData 값으로 내부 설정을 동기화합니다. JsonManager가 없으면 인스펙터 값을 그대로 둡니다.
@@ -133,6 +176,7 @@ public class DualMonitorSpanController : MonoBehaviour
             SetWindowLong(windowHandle, GWL_STYLE, WS_POPUP | WS_VISIBLE);
 
         SetWindowPos(windowHandle, IntPtr.Zero, targetX, targetY, targetWidth, targetHeight, SWP_SHOWWINDOW);
+        CaptureAppliedConfig();
         Debug.Log($"스팬 창 적용 완료 [{_resolutionMode}]: {targetWidth}x{targetHeight} / origin({targetX}, {targetY})");
     }
 

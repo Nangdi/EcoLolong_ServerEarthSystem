@@ -34,14 +34,14 @@ public class UnityAlwaysOnTop : MonoBehaviour
             return;
         }
         // 에디터에선 무시
-        if (Display.displays.Length > 1)
-        {
-            Display.displays[1].Activate();
-        }
-        if (Display.displays.Length > 2)
-        {
-            Display.displays[2].Activate();
-        }
+        // if (Display.displays.Length > 1)
+        // {
+        //     Display.displays[1].Activate();
+        // }
+        // if (Display.displays.Length > 2)
+        // {
+        //     Display.displays[2].Activate();
+        // }
 
         if (!JsonManager.instance.gameSettingData.useUnityOnTop)
         {
