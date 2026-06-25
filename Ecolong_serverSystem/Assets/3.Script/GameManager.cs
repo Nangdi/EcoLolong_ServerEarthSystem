@@ -84,8 +84,9 @@ public class GameManager : MonoBehaviour
         // 게임 시간 속도는 gameTimeScale 하나만으로 통제하기 위해 Unity의 전역 시간배율은 항상 1로 정규화합니다.
         // (TimeManager.asset의 m_TimeScale이 1이 아니면 GameTimer/그래프가 의도와 다르게 빨라집니다.)
         Time.timeScale = 1f;
-        // gameSettingData.json에 저장된 사용자 설정 속도를 우선 적용합니다. JsonManager가 아직 없으면 인스펙터 값을 그대로 사용합니다.
+        // gameSettingData.json에 저장된 사용자 설정 속도/총시간을 우선 적용합니다. JsonManager가 아직 없으면 인스펙터 값을 그대로 사용합니다.
         ApplyGameTimeScaleFromSettings();
+        ApplyGameTotalTimeFromSettings();
         // 시작 시점에는 Ready 상태이므로 GameTimer에도 동일 스케일을 푸시해 둡니다.
         if (GameTimer.Instance != null)
             GameTimer.Instance.SetTimerSpeed(gameTimeScale);
@@ -109,6 +110,16 @@ public class GameManager : MonoBehaviour
             GameTimer.Instance.SetTimerSpeed(gameTimeScale);
     }
 
+    // 사용자가 게임세팅 패널에서 수정한 총시간(초)을 즉시 GameTimer.gameTime에 반영합니다.
+    public void SetGameTotalTime(float totalTime)
+    {
+        if (totalTime <= 0f)
+            return;
+
+        if (GameTimer.Instance != null)
+            GameTimer.Instance.SetGameTime(totalTime);
+    }
+
     private void ApplyGameTimeScaleFromSettings()
     {
         JsonManager jsonManager = JsonManager.instance;
@@ -118,6 +129,16 @@ public class GameManager : MonoBehaviour
         float saved = jsonManager.gameSettingData.gameTimeScale;
         if (saved > 0f)
             gameTimeScale = saved;
+    }
+
+    // gameSettingData.json에 저장된 게임 총시간(초)을 GameTimer.gameTime에 반영합니다.
+    private void ApplyGameTotalTimeFromSettings()
+    {
+        JsonManager jsonManager = JsonManager.instance;
+        if (jsonManager == null || jsonManager.gameSettingData == null)
+            return;
+
+        SetGameTotalTime(jsonManager.gameSettingData.gameTotalTime);
     }
 
     // TcpDataAggregator가 늦게 초기화되는 케이스를 위해 Start와 Update에서 반복적으로 구독을 시도합니다.

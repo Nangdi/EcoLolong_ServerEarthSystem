@@ -140,6 +140,16 @@ public class GameTimer : MonoBehaviour
         settingGameScale = scale;
     }
 
+    // 게임 총시간(타임아웃 기준)을 변경하고, 멈춰 있을 때도 남은 시간 텍스트가 즉시 갱신되도록 OnTimeChanged를 발행합니다.
+    public void SetGameTime(float totalTime)
+    {
+        if (totalTime <= 0f)
+            return;
+
+        gameTime = totalTime;
+        OnTimeChanged?.Invoke(_currentTime);
+    }
+
     // 타이머의 정규화 진행도(0~1)를 반환합니다. 리플레이 동영상이 타이머에 맞춰 따라가도록 동기화하는 기준값입니다.
     public float GetNormalizedProgress()
     {

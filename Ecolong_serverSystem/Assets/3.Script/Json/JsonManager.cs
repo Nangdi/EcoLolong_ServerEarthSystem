@@ -9,6 +9,8 @@ public class GameSettingData
     public bool useUnityOnTop;
     // 게임 플레이 중 GameTimer/그래프 갱신 속도. 1이면 실시간, 60이면 1초당 1분이 흐릅니다.
     public float gameTimeScale = 1f;
+    // 한 판의 게임 총시간(초). 기본 900초(15분). 타이머의 타임아웃 기준으로 사용됩니다.
+    public float gameTotalTime = 900f;
 
     // ----- DualMonitorSpan (ESC 설정창에서 실시간 변경/적용) -----
     // 듀얼 모니터 스팬 창을 적용할지 여부.

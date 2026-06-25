@@ -114,9 +114,12 @@ public class GameSettingsPanelUI : MonoBehaviour
 
         _jsonManager.SaveGameSettingData();
 
-        // 저장된 gameTimeScale을 즉시 런타임에 적용하여 GameTimer와 그래프 갱신 주기가 새 값으로 동작하게 합니다.
+        // 저장된 gameTimeScale/총시간을 즉시 런타임에 적용하여 GameTimer와 그래프 갱신 주기가 새 값으로 동작하게 합니다.
         if (GameManager.Instance != null)
+        {
             GameManager.Instance.SetGameTimeScale(_jsonManager.gameSettingData.gameTimeScale);
+            GameManager.Instance.SetGameTotalTime(_jsonManager.gameSettingData.gameTotalTime);
+        }
 
         // 저장된 DualMonitorSpan 설정을 즉시 스팬 창에 반영합니다(실시간 적용).
         DualMonitorSpanController spanController = FindObjectOfType<DualMonitorSpanController>();
