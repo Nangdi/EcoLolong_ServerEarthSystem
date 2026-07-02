@@ -63,6 +63,7 @@ public class EarthSpriteCrossfader : MonoBehaviour
     private int _currentEco = -1;
     private int _lastReplayedIndex = -1;
     private Coroutine _fadeRoutine;
+    private int debugIndex = 0;
 
     private void Awake()
     {
@@ -90,6 +91,19 @@ public class EarthSpriteCrossfader : MonoBehaviour
     {
         // 매니저가 늦게 초기화되는 경우를 대비해 구독될 때까지 재시도합니다.
         TrySubscribe();
+
+        if(Input.GetKeyDown(KeyCode.RightBracket))
+        {
+            debugIndex = (debugIndex + 1) % _sprites.Length;
+            debugIndex = Mathf.Clamp(debugIndex, 0, _sprites.Length - 1);
+            CommitInstant(_sprites[debugIndex]);
+        }
+          if(Input.GetKeyDown(KeyCode.LeftBracket))
+        {
+            debugIndex = (debugIndex - 1) % _sprites.Length;
+            debugIndex = Mathf.Clamp(debugIndex, 0, _sprites.Length - 1);
+            CommitInstant(_sprites[debugIndex]);
+        }
 
         // 리플레이 중에는 EarthStateManager가 멈춰 StateChanged가 오지 않으므로,
         // 기록해 둔 샘플을 GameTimer 진행 시간에 맞춰 직접 적용합니다.

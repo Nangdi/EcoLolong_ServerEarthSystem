@@ -37,7 +37,10 @@
       "PowerShell(Test-Path *)",
       "Bash(git *)",
       "Bash(dir \"%LOCALAPPDATA%\\\\UnityMCP\")",
-      "Bash(dir \"%LOCALAPPDATA%\\\\Programs\\\\UnityMCP\")"
+      "Bash(dir \"%LOCALAPPDATA%\\\\Programs\\\\UnityMCP\")",
+      "Bash(xargs grep -l \"Cursor\\\\|fullscreen\\\\|Screen\\\\|resolution\")",
+      "Bash(xargs grep -l \"config\\\\|setting\\\\|display\\\\|resolution\")",
+      "Bash(xargs grep -l \"TcpClient\\\\|Socket\")"
     ]
   }
 }
