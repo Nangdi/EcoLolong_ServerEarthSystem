@@ -11,6 +11,8 @@ public class GameSettingData
     public float gameTimeScale = 1f;
     // 한 판의 게임 총시간(초). 기본 900초(15분). 타이머의 타임아웃 기준으로 사용됩니다.
     public float gameTotalTime = 900f;
+    // R 키 리플레이 재생 배율. 15면 실제 플레이 대비 15배 빠르게 리플레이가 진행됩니다.
+    public float replayTimerSpeed = 15f;
 
     // ----- DualMonitorSpan (ESC 설정창에서 실시간 변경/적용) -----
     // 듀얼 모니터 스팬 창을 적용할지 여부.

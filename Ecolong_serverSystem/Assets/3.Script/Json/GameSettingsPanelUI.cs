@@ -119,6 +119,7 @@ public class GameSettingsPanelUI : MonoBehaviour
         {
             GameManager.Instance.SetGameTimeScale(_jsonManager.gameSettingData.gameTimeScale);
             GameManager.Instance.SetGameTotalTime(_jsonManager.gameSettingData.gameTotalTime);
+            GameManager.Instance.SetReplayTimerSpeed(_jsonManager.gameSettingData.replayTimerSpeed);
         }
 
         // 저장된 DualMonitorSpan 설정을 즉시 스팬 창에 반영합니다(실시간 적용).

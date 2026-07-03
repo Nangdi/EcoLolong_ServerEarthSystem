@@ -87,6 +87,7 @@ public class GameManager : MonoBehaviour
         // gameSettingData.json에 저장된 사용자 설정 속도/총시간을 우선 적용합니다. JsonManager가 아직 없으면 인스펙터 값을 그대로 사용합니다.
         ApplyGameTimeScaleFromSettings();
         ApplyGameTotalTimeFromSettings();
+        ApplyReplayTimerSpeedFromSettings();
         // 시작 시점에는 Ready 상태이므로 GameTimer에도 동일 스케일을 푸시해 둡니다.
         if (GameTimer.Instance != null)
             GameTimer.Instance.SetTimerSpeed(gameTimeScale);
@@ -120,6 +121,19 @@ public class GameManager : MonoBehaviour
             GameTimer.Instance.SetGameTime(totalTime);
     }
 
+    // 사용자가 게임세팅 패널에서 수정한 리플레이 재생 배율을 즉시 반영합니다.
+    // 리플레이가 진행 중이면 GameTimer 속도까지 바로 갈아끼워 실시간으로 재생 속도가 바뀌게 합니다.
+    public void SetReplayTimerSpeed(float speed)
+    {
+        if (speed <= 0f)
+            return;
+
+        _replayTimerSpeed = speed;
+
+        if (IsReplay && GameTimer.Instance != null)
+            GameTimer.Instance.SetTimerSpeed(_replayTimerSpeed);
+    }
+
     private void ApplyGameTimeScaleFromSettings()
     {
         JsonManager jsonManager = JsonManager.instance;
@@ -139,6 +153,18 @@ public class GameManager : MonoBehaviour
             return;
 
         SetGameTotalTime(jsonManager.gameSettingData.gameTotalTime);
+    }
+
+    // gameSettingData.json에 저장된 리플레이 재생 배율을 _replayTimerSpeed에 반영합니다.
+    private void ApplyReplayTimerSpeedFromSettings()
+    {
+        JsonManager jsonManager = JsonManager.instance;
+        if (jsonManager == null || jsonManager.gameSettingData == null)
+            return;
+
+        float saved = jsonManager.gameSettingData.replayTimerSpeed;
+        if (saved > 0f)
+            _replayTimerSpeed = saved;
     }
 
     // TcpDataAggregator가 늦게 초기화되는 케이스를 위해 Start와 Update에서 반복적으로 구독을 시도합니다.
