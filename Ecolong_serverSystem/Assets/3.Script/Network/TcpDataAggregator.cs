@@ -68,6 +68,8 @@ public class TcpDataAggregator : MonoBehaviour
     [SerializeField] private KeyCode _sendMessageTestKey = KeyCode.T;
     [Tooltip("디버그용: 누르면 'VIDEO_UPLOAD|test.mp4' TCP 수신을 시뮬레이션합니다.")]
     [SerializeField] private KeyCode _sendVideoTestKey = KeyCode.V;
+    // 태양광 누적 디버그 키입니다. (인스펙터 노출 없이 고정)
+    private const KeyCode SendSolarTestKey = KeyCode.Alpha3;
     [Tooltip("디버그 비디오 키 입력 시 시뮬레이션할 파일명입니다.")]
     [SerializeField] private string _videoTestFileName = "test.mp4";
 
@@ -146,7 +148,7 @@ public class TcpDataAggregator : MonoBehaviour
     // 백그라운드에서 받은 TCP 데이터를 Unity 메인 스레드에서 합산하고 이벤트를 발생시킵니다.
     private void Update()
     {
-        HandleKeyboardTestInput();
+        // HandleKeyboardTestInput();
 
         ProcessVideoQueue();
 
@@ -197,27 +199,43 @@ public class TcpDataAggregator : MonoBehaviour
         return totalsChanged;
     }
 
+    // ESC 설정창의 키 설정에서 "겹치는 키" 안내를 만들 때 사용합니다.
+    // 키보드 테스트가 꺼져 있으면 실제로 동작하지 않으므로 아무것도 담지 않습니다.
+    public void CollectDebugKeys(List<KeyUsage> results)
+    {
+        if (results == null || !_enableKeyboardTest)
+            return;
+
+        results.Add(new KeyUsage(_sendATestKey, "[디버그] 화력 누적"));
+        results.Add(new KeyUsage(_sendBTestKey, "[디버그] 수력 누적"));
+        results.Add(new KeyUsage(SendSolarTestKey, "[디버그] 태양광 누적"));
+        results.Add(new KeyUsage(_clearTestKey, "[디버그] 누적 초기화"));
+        results.Add(new KeyUsage(_sendMessageTestKey, "[디버그] 메시지 전송"));
+        results.Add(new KeyUsage(_sendVideoTestKey, "[디버그] VIDEO_UPLOAD 시뮬레이션"));
+    }
+
     // TCP 클라이언트 없이도 수신/전송 기능을 테스트할 수 있도록 키보드 입력을 처리합니다.
     private void HandleKeyboardTestInput()
     {
         if (!_enableKeyboardTest)
             return;
 
-        if (Input.GetKeyDown(_sendATestKey))
+        // GetSecondaryKeyDown: 시작/리플레이/종료 키와 겹치는 디버그 키는 무시됩니다. (설정 키 우선)
+        if (GameKeyBindings.GetSecondaryKeyDown(_sendATestKey))
             AddData("화력", _testAddCount);
 
-        if (Input.GetKeyDown(_sendBTestKey))
+        if (GameKeyBindings.GetSecondaryKeyDown(_sendBTestKey))
             AddData("수력", _testAddCount);
 
-        if (Input.GetKeyDown(_clearTestKey))
+        if (GameKeyBindings.GetSecondaryKeyDown(_clearTestKey))
             ClearTotals();
-        if (Input.GetKeyDown(KeyCode.Alpha3))
+        if (GameKeyBindings.GetSecondaryKeyDown(SendSolarTestKey))
             AddData("태양광", _testAddCount);
-        if (Input.GetKeyDown(_sendMessageTestKey))
+        if (GameKeyBindings.GetSecondaryKeyDown(_sendMessageTestKey))
             SendCurrentMessageToAllClients();
 
         // 디버그용: VIDEO_UPLOAD|파일명 TCP 수신을 실제 파싱 경로 그대로 시뮬레이션합니다.
-        if (Input.GetKeyDown(_sendVideoTestKey))
+        if (GameKeyBindings.GetSecondaryKeyDown(_sendVideoTestKey))
         {
             string fileName = string.IsNullOrWhiteSpace(_videoTestFileName) ? "test.mp4" : _videoTestFileName.Trim();
             EnqueueParsedLine($"{VideoReadyPrefix}|{fileName}", "LOCAL_TEST");

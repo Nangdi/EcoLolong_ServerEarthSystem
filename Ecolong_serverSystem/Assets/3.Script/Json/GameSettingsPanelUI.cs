@@ -21,6 +21,9 @@ public class GameSettingsPanelUI : MonoBehaviour
 
     private JsonManager _jsonManager;
 
+    // 행 생성이 끝났는지 여부입니다. (패널이 처음 켜질 때 Start보다 OnEnable이 먼저 불립니다)
+    private bool _isBuilt;
+
     // JsonManager를 찾고 현재 게임 설정값으로 UI 행을 생성합니다.
     private void Start()
     {
@@ -33,9 +36,39 @@ public class GameSettingsPanelUI : MonoBehaviour
         }
 
         BuildSettingRows();
+        EnsureKeyRebindUI();
+
+        // 설정창 안의 모든 TMP 텍스트를 한글 폰트(NotoSansKR SDF)로 교체합니다.
+        // 폰트가 지정되지 않은 텍스트는 TMP 기본 폰트(LiberationSans)로 그려져 한글이 깨지기 때문입니다.
+        KoreanFontProvider.ApplyToHierarchy(_settingPanel);
 
         if (_saveButton != null)
             _saveButton.onClick.AddListener(SaveSettings);
+
+        _isBuilt = true;
+
+        // 키 재지정 등으로 설정값이 코드에서 바뀌면 입력칸 표시도 즉시 따라가게 합니다.
+        GameKeyBindings.Changed += RefreshInputsFromData;
+    }
+
+    // 패널을 다시 열 때마다 현재 저장값을 입력칸에 반영합니다.
+    // (키 설정 버튼으로 바뀐 startKey/replayKey/endKey가 옛 값으로 보이는 것을 막습니다)
+    private void OnEnable()
+    {
+        if (_isBuilt)
+            RefreshInputsFromData();
+    }
+
+    // 시작/리플레이/종료 키 재지정 기능을 설정창에 붙입니다.
+    // 씬에 KeyRebindController가 없으면 이 오브젝트에 추가하고, 버튼/안내문구는 자동 생성합니다.
+    private void EnsureKeyRebindUI()
+    {
+        KeyRebindController rebindController = FindObjectOfType<KeyRebindController>(true);
+
+        if (rebindController == null)
+            rebindController = gameObject.AddComponent<KeyRebindController>();
+
+        rebindController.EnsureUI(_settingPanel, _saveButton, _textTemplate);
     }
 
     // Save 버튼 이벤트가 중복으로 남지 않도록 해제합니다.
@@ -43,6 +76,35 @@ public class GameSettingsPanelUI : MonoBehaviour
     {
         if (_saveButton != null)
             _saveButton.onClick.RemoveListener(SaveSettings);
+
+        GameKeyBindings.Changed -= RefreshInputsFromData;
+    }
+
+    // 현재 GameSettingData 값을 모든 입력칸에 다시 써넣습니다.
+    // 입력칸이 옛 값을 들고 있으면 Save할 때 그 옛 값이 그대로 덮어쓰기 때문에 반드시 최신화가 필요합니다.
+    private void RefreshInputsFromData()
+    {
+        if (_settingPanel == null || _jsonManager == null || _jsonManager.gameSettingData == null)
+            return;
+
+        GameSettingData settings = _jsonManager.gameSettingData;
+        TMP_InputField[] inputs = _settingPanel.GetComponentsInChildren<TMP_InputField>(true);
+
+        foreach (TMP_InputField input in inputs)
+        {
+            if (!input.name.StartsWith("InputField_"))
+                continue;
+
+            string fieldName = input.name.Substring("InputField_".Length);
+            FieldInfo field = typeof(GameSettingData).GetField(fieldName, BindingFlags.Instance | BindingFlags.Public);
+
+            if (field == null)
+                continue;
+
+            string currentValue = ValueToString(field.GetValue(settings));
+            if (input.text != currentValue)
+                input.SetTextWithoutNotify(currentValue);
+        }
     }
 
     // GameSettingData의 public 필드를 Text + InputField 행으로 자동 생성합니다.
@@ -121,6 +183,12 @@ public class GameSettingsPanelUI : MonoBehaviour
             GameManager.Instance.SetGameTotalTime(_jsonManager.gameSettingData.gameTotalTime);
             GameManager.Instance.SetReplayTimerSpeed(_jsonManager.gameSettingData.replayTimerSpeed);
         }
+
+        // 입력필드로 직접 수정한 startKey/replayKey/endKey 문자열도 즉시 반영합니다.
+        GameKeyBindings.LoadFromSettings();
+
+        // 파싱에 실패해 반영되지 않은 입력이 있을 수 있으므로, 실제 저장된 값으로 표시를 맞춥니다.
+        RefreshInputsFromData();
 
         // 저장된 DualMonitorSpan 설정을 즉시 스팬 창에 반영합니다(실시간 적용).
         DualMonitorSpanController spanController = FindObjectOfType<DualMonitorSpanController>();

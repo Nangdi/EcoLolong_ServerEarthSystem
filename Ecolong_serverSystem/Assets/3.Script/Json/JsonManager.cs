@@ -14,6 +14,12 @@ public class GameSettingData
     // R 키 리플레이 재생 배율. 15면 실제 플레이 대비 15배 빠르게 리플레이가 진행됩니다.
     public float replayTimerSpeed = 15f;
 
+    // ----- 시작 / 리플레이 / 종료 키 (ESC 설정창의 키 설정 버튼에서 재지정) -----
+    // UnityEngine.KeyCode 이름을 그대로 저장합니다. (예: "S", "R", "E", "F7", "Alpha1", "Space")
+    public string startKey = "S";
+    public string replayKey = "R";
+    public string endKey = "E";
+
     // ----- DualMonitorSpan (ESC 설정창에서 실시간 변경/적용) -----
     // 듀얼 모니터 스팬 창을 적용할지 여부.
     public bool dualMonitorSpan = true;

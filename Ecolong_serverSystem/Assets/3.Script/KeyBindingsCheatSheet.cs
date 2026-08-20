@@ -10,12 +10,12 @@ using UnityEngine;
 //  ┌──────────┬───────────────────────────────┬──────────────────────────────┐
 //  │   키     │            동작               │   처리 스크립트 / 조건        │
 //  ├──────────┼───────────────────────────────┼──────────────────────────────┤
-//  │  S       │ 게임 시작 / 재시작            │ GameManager                  │
+//  │  S(기본) │ 게임 시작 / 재시작            │ GameManager                  │
 //  │          │                               │  (Ready 또는 Playing 상태)   │
-//  │  R       │ 리플레이 시작                 │ GameManager / EndPanel       │
+//  │  R(기본) │ 리플레이 시작                 │ GameManager / EndPanel       │
 //  │          │                               │  (TimeOut+영상준비 또는      │
 //  │          │                               │   Ended 상태)                │
-//  │  E       │ 처음 상태(Ready)로 복귀 /     │ GameManager / EndPanel       │
+//  │  E(기본) │ 처음 상태(Ready)로 복귀 /     │ GameManager / EndPanel       │
 //  │          │ 엔드패널2 닫기                │  (Ended & 리플레이중 아님)   │
 //  ├──────────┼───────────────────────────────┼──────────────────────────────┤
 //  │  F5      │ [강제] Ready 송신 후          │ GameManager                  │
@@ -41,8 +41,10 @@ using UnityEngine;
 //
 //  ※ 1/2/3/0 키와 누적량 N(=_testAddCount)·각 테스트 키는
 //    TcpDataAggregator 인스펙터에서 변경할 수 있습니다.
-//  ※ R/E 키와 강제 키(F5/F6)는 GameManager 인스펙터(_replayKey,
-//    _forceReadyKey, _forceTimeOutKey)에서 변경할 수 있습니다.
+//  ※ S/R/E(시작·리플레이·종료) 키는 ESC 설정창의 "키 설정" 버튼에서
+//    직접 눌러 지정할 수 있으며 gameSettingData.json에 저장됩니다.
+//  ※ 강제 키(F5/F6)는 GameManager 인스펙터(_forceReadyKey,
+//    _forceTimeOutKey)에서 변경할 수 있습니다.
 // =============================================================================
 public class KeyBindingsCheatSheet : MonoBehaviour
 {
@@ -51,6 +53,9 @@ public class KeyBindingsCheatSheet : MonoBehaviour
 
     [Header("토글 키")]
     [SerializeField] private KeyCode _toggleKey = KeyCode.F1;
+
+    // 키 겹침 안내(ESC 설정창)에서 읽어갑니다.
+    public KeyCode ToggleKey => _toggleKey;
 
     [Header("시작 시 표시 여부")]
     [SerializeField] private bool _showOnStart = false;
@@ -61,20 +66,26 @@ public class KeyBindingsCheatSheet : MonoBehaviour
     [SerializeField] private float _uiScale = 1.8f;
 
     // 화면에 그릴 단축키 항목(키, 설명) 목록입니다. 위 주석 표와 같은 내용입니다.
-    private static readonly (string key, string desc)[] _entries =
+    // 시작/리플레이/종료 키는 ESC 설정창에서 바뀔 수 있어 GameKeyBindings 값으로 매번 다시 만듭니다.
+    private (string key, string desc)[] _entries;
+
+    private void BuildEntries()
     {
-        ("S", "게임 시작 / 재시작 (Ready·Playing)"),
-        ("R", "리플레이 시작 (TimeOut+영상준비·Ended)"),
-        ("E", "처음 상태로 복귀 / 엔드패널2 닫기 (Ended)"),
-        ("F5", "[강제] Ready 송신 + 게임 초기상태 복귀 (모든 상태)"),
-        ("F6", "[강제] 즉시 타임아웃 → 업로드 대기 패널 (Playing)"),
-        ("ESC", "설정 패널 · TCP 로그 패널 토글"),
-        ("1 / 2 / 3", "[디버그] 화력 / 수력 / 태양광 누적 +N"),
-        ("0", "[디버그] 누적 데이터 초기화"),
-        ("T", "[디버그] 현재 메시지 전체 클라이언트 전송"),
-        ("V", "[디버그] VIDEO_UPLOAD 수신 시뮬레이션"),
-        ("F1", "이 도움말 표시 / 숨김"),
-    };
+        _entries = new (string key, string desc)[]
+        {
+            (GameKeyBindings.StartKey.ToString(), "게임 시작 / 재시작 (Ready·Playing)"),
+            (GameKeyBindings.ReplayKey.ToString(), "리플레이 시작 (TimeOut+영상준비·Ended)"),
+            (GameKeyBindings.EndKey.ToString(), "처음 상태로 복귀 / 엔드패널2 닫기 (Ended)"),
+            ("F5", "[강제] Ready 송신 + 게임 초기상태 복귀 (모든 상태)"),
+            ("F6", "[강제] 즉시 타임아웃 → 업로드 대기 패널 (Playing)"),
+            ("ESC", "설정 패널 · TCP 로그 패널 토글"),
+            ("1 / 2 / 3", "[디버그] 화력 / 수력 / 태양광 누적 +N"),
+            ("0", "[디버그] 누적 데이터 초기화"),
+            ("T", "[디버그] 현재 메시지 전체 클라이언트 전송"),
+            ("V", "[디버그] VIDEO_UPLOAD 수신 시뮬레이션"),
+            ("F1", "이 도움말 표시 / 숨김"),
+        };
+    }
 
     private bool _visible;
     private GUIStyle _titleStyle;
@@ -85,6 +96,18 @@ public class KeyBindingsCheatSheet : MonoBehaviour
     private void Awake()
     {
         _visible = _showOnStart;
+        BuildEntries();
+    }
+
+    private void OnEnable()
+    {
+        // 설정창에서 시작/리플레이/종료 키가 바뀌면 표도 같이 갱신합니다.
+        GameKeyBindings.Changed += BuildEntries;
+    }
+
+    private void OnDisable()
+    {
+        GameKeyBindings.Changed -= BuildEntries;
     }
 
     private void Update()
@@ -92,7 +115,8 @@ public class KeyBindingsCheatSheet : MonoBehaviour
         if (!_enableOverlay)
             return;
 
-        if (Input.GetKeyDown(_toggleKey))
+        // GetSecondaryKeyDown: 시작/리플레이/종료 키와 겹치면 도움말 토글을 무시합니다. (설정 키 우선)
+        if (GameKeyBindings.GetSecondaryKeyDown(_toggleKey))
             _visible = !_visible;
     }
 
@@ -100,6 +124,9 @@ public class KeyBindingsCheatSheet : MonoBehaviour
     {
         if (!_enableOverlay || !_visible)
             return;
+
+        if (_entries == null)
+            BuildEntries();
 
         EnsureStyles();
 
@@ -160,5 +187,10 @@ public class KeyBindingsCheatSheet : MonoBehaviour
             fontSize = Mathf.RoundToInt(15 * scale),
             normal = { textColor = Color.white },
         };
+
+        // 기본 IMGUI 폰트에는 한글 글리프가 없어 네모로 깨지므로 시스템 한글 폰트로 교체합니다.
+        KoreanFontProvider.ApplyTo(_titleStyle);
+        KoreanFontProvider.ApplyTo(_keyStyle);
+        KoreanFontProvider.ApplyTo(_descStyle);
     }
 }

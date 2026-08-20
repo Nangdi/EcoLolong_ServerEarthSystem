@@ -20,6 +20,10 @@ using UnityEditor;
 [RequireComponent(typeof(Image))]
 public class EarthSpriteCrossfader : MonoBehaviour
 {
+    // 디버그용 스프라이트 앞뒤 이동 키입니다. (키 겹침 안내에서도 사용)
+    public const KeyCode NextSpriteDebugKey = KeyCode.RightBracket;
+    public const KeyCode PrevSpriteDebugKey = KeyCode.LeftBracket;
+
     private const int LevelMin = 1;
     private const int LevelMax = 5;
     private const int LevelCount = LevelMax - LevelMin + 1; // 5
@@ -92,13 +96,14 @@ public class EarthSpriteCrossfader : MonoBehaviour
         // 매니저가 늦게 초기화되는 경우를 대비해 구독될 때까지 재시도합니다.
         TrySubscribe();
 
-        if(Input.GetKeyDown(KeyCode.RightBracket))
+        // GetSecondaryKeyDown: 시작/리플레이/종료 키와 겹치면 디버그 키를 무시합니다. (설정 키 우선)
+        if(GameKeyBindings.GetSecondaryKeyDown(NextSpriteDebugKey))
         {
             debugIndex = (debugIndex + 1) % _sprites.Length;
             debugIndex = Mathf.Clamp(debugIndex, 0, _sprites.Length - 1);
             CommitInstant(_sprites[debugIndex]);
         }
-          if(Input.GetKeyDown(KeyCode.LeftBracket))
+          if(GameKeyBindings.GetSecondaryKeyDown(PrevSpriteDebugKey))
         {
             debugIndex = (debugIndex - 1) % _sprites.Length;
             debugIndex = Mathf.Clamp(debugIndex, 0, _sprites.Length - 1);

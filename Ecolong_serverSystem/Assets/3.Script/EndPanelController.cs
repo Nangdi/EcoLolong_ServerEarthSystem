@@ -6,15 +6,15 @@ public class EndPanelController : MonoBehaviour
     [SerializeField] private bool _enableController = true;
 
     [Header("패널 참조")]
-    [Tooltip("S 누르고 15분 경과 시 활성, VIDEO_UPLOAD 수신 시 비활성")]
+    [Tooltip("시작키를 누르고 게임 시간 경과 시 활성, VIDEO_UPLOAD 수신 시 비활성")]
     [SerializeField] private GameObject _endPanel1;
-    [Tooltip("R 누르고 리플레이 시간 종료 시 활성, E 키 입력 시 비활성")]
+    [Tooltip("리플레이키를 누르고 리플레이 시간 종료 시 활성, 종료키 입력 시 비활성")]
     [SerializeField] private GameObject _endPanel2;
     [Tooltip("VIDEO_UPLOAD 수신 시 활성화할 Scene2 Canvas")]
     [SerializeField] private GameObject _scene2Canvas;
 
-    [Header("입력 키")]
-    [SerializeField] private KeyCode _closePanel2Key = KeyCode.E;
+    // 패널을 닫는 키는 GameManager와 동일하게 GameKeyBindings.EndKey(기본 E)를 사용합니다.
+    // 값은 ESC 설정창의 "키 설정" 버튼에서 변경합니다.
 
     private TcpDataAggregator _aggregator;
     private GameTimer _gameTimer;
@@ -41,9 +41,13 @@ public class EndPanelController : MonoBehaviour
         if (!_enableController)
             return;
 
-        if (Input.GetKeyDown(_closePanel2Key))
+        // ESC 설정창에서 키를 재지정하는 중에는 입력을 무시합니다.
+        if (GameKeyBindings.IsRebinding)
+            return;
+
+        if (Input.GetKeyDown(GameKeyBindings.EndKey))
         {
-            // GameManager의 E 키 통제 원칙과 동일하게, Ended 상태이면서 리플레이가 진행 중이지 않을 때만 패널을 닫습니다.
+            // GameManager의 종료키 통제 원칙과 동일하게, Ended 상태이면서 리플레이가 진행 중이지 않을 때만 패널을 닫습니다.
             GameManager gameManager = GameManager.Instance;
             if (gameManager == null || gameManager.CurrentGameState != GameState.Ended || gameManager.IsReplay)
                 return;

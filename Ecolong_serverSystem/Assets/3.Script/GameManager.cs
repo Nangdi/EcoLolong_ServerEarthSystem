@@ -31,7 +31,7 @@ public class GameManager : MonoBehaviour
     }
     public event Action OnGameStart; // 게임 시작 이벤트
     public event Action OnGameEnd; // 게임 종료 이벤트
-    public event Action OnReplay; // 리플레이 시작 이벤트 (R 키)
+    public event Action OnReplay; // 리플레이 시작 이벤트 (리플레이 키)
 
     [Tooltip("플레이 중 게임 시간이 흐르는 속도. 1=실시간, 60=1초가 1분.")]
     [Min(0.01f)]
@@ -41,13 +41,12 @@ public class GameManager : MonoBehaviour
 
     public TcpDataAggregator tcpDataAggregator; // TCP 데이터 집계기 참조
 
-    // TimeOut 상태에서 R 키로 리플레이를 시작하려면 클라이언트가 VIDEO_UPLOAD를 한 번 이상 보내야 합니다.
+    // TimeOut 상태에서 리플레이키로 리플레이를 시작하려면 클라이언트가 VIDEO_UPLOAD를 한 번 이상 보내야 합니다.
     private bool _isVideoReady;
     private bool _isVideoReadySubscribed;
 
-    [Header("Replay")]
-    [FormerlySerializedAs("replayKey")]
-    [SerializeField] private KeyCode _replayKey = KeyCode.R;
+    // 시작/리플레이/종료 키는 GameKeyBindings(= gameSettingData.json의 startKey/replayKey/endKey)에서 가져옵니다.
+    // 값 변경은 ESC 설정창의 "키 설정" 버튼(KeyRebindController)에서 합니다.
 
     [Header("강제 상태이동 키")]
     [Tooltip("현재 상태와 무관하게 클라이언트에 Ready를 송신하고 게임을 초기 상태로 되돌립니다.")]
@@ -56,6 +55,10 @@ public class GameManager : MonoBehaviour
     [SerializeField] private KeyCode _forceTimeOutKey = KeyCode.F6;
     [FormerlySerializedAs("replayTimerSpeed")]
     [SerializeField] private float _replayTimerSpeed = 15f;
+
+    // 키 겹침 안내(ESC 설정창)에서 읽어가는 강제 키입니다.
+    public KeyCode ForceReadyKey => _forceReadyKey;
+    public KeyCode ForceTimeOutKey => _forceTimeOutKey;
     private void Awake()
     {
         if (Instance != null && Instance != this)
@@ -88,6 +91,7 @@ public class GameManager : MonoBehaviour
         ApplyGameTimeScaleFromSettings();
         ApplyGameTotalTimeFromSettings();
         ApplyReplayTimerSpeedFromSettings();
+        GameKeyBindings.LoadFromSettings();
         // 시작 시점에는 Ready 상태이므로 GameTimer에도 동일 스케일을 푸시해 둡니다.
         if (GameTimer.Instance != null)
             GameTimer.Instance.SetTimerSpeed(gameTimeScale);
@@ -183,7 +187,7 @@ public class GameManager : MonoBehaviour
         _isVideoReadySubscribed = true;
     }
 
-    // VIDEO_UPLOAD를 한 번이라도 수신하면 TimeOut 상태에서 R 키 입력이 허용됩니다.
+    // VIDEO_UPLOAD를 한 번이라도 수신하면 TimeOut 상태에서 리플레이키 입력이 허용됩니다.
     private void OnVideoReady(string fileName)
     {
         _isVideoReady = true;
@@ -217,8 +221,8 @@ public class GameManager : MonoBehaviour
         }
         else if (CurrentGameState.Equals(GameState.Ended))
         {
-            // 리플레이가 끝난 시점입니다. "Ready" 송신과 전체 초기화는 E 키 처리에서 담당합니다.
-            Debug.Log("Replay Ended! (E 키 대기)");
+            // 리플레이가 끝난 시점입니다. "Ready" 송신과 전체 초기화는 종료키 처리에서 담당합니다.
+            Debug.Log($"Replay Ended! ({GameKeyBindings.EndKey} 키 대기)");
         }
     }
 
@@ -228,8 +232,12 @@ public class GameManager : MonoBehaviour
         // Time.timeScale = gameTimeScale; // 게임 시작 시 시간 흐름을 설정
         TrySubscribeVideoReady();
 
-        // S: Ready(첫 시작) 또는 Playing(재시작) 상태에서만 받습니다.
-        if (Input.GetKeyDown(KeyCode.S))
+        // ESC 설정창에서 키를 재지정하는 중에는 눌린 키가 게임 동작으로 이어지지 않게 막습니다.
+        if (GameKeyBindings.IsRebinding)
+            return;
+
+        // 시작키(기본 S): Ready(첫 시작) 또는 Playing(재시작) 상태에서만 받습니다.
+        if (Input.GetKeyDown(GameKeyBindings.StartKey))
         {
             if (CurrentGameState == GameState.Ready || CurrentGameState == GameState.Playing)
             {
@@ -239,9 +247,9 @@ public class GameManager : MonoBehaviour
             }
         }
 
-        // R: TimeOut(비디오 업로드 완료 후) 상태에서만 리플레이를 시작합니다.
-        // 리플레이가 끝난 Ended 상태에서는 R을 눌러도 다시 재생되지 않습니다. (E 키로 Ready 복귀)
-        if (Input.GetKeyDown(_replayKey))
+        // 리플레이키(기본 R): TimeOut(비디오 업로드 완료 후) 상태에서만 리플레이를 시작합니다.
+        // 리플레이가 끝난 Ended 상태에서는 눌러도 다시 재생되지 않습니다. (종료키로 Ready 복귀)
+        if (Input.GetKeyDown(GameKeyBindings.ReplayKey))
         {
             if (CurrentGameState == GameState.TimeOut && _isVideoReady)
             {
@@ -249,9 +257,9 @@ public class GameManager : MonoBehaviour
             }
         }
 
-        // E: Ended 상태이면서 리플레이가 진행 중이지 않을 때만 처음 상태(Ready)로 복귀합니다.
-        // (리플레이 도중 R 재입력 등으로 TimeOut으로 되돌아간 경우에도 E가 작동하지 않도록 IsReplay 가드를 함께 둡니다.)
-        if (Input.GetKeyDown(KeyCode.E))
+        // 종료키(기본 E): Ended 상태이면서 리플레이가 진행 중이지 않을 때만 처음 상태(Ready)로 복귀합니다.
+        // (리플레이 도중 재입력 등으로 TimeOut으로 되돌아간 경우에도 작동하지 않도록 IsReplay 가드를 함께 둡니다.)
+        if (Input.GetKeyDown(GameKeyBindings.EndKey))
         {
             if (CurrentGameState == GameState.Ended && !IsReplay)
             {
@@ -263,14 +271,15 @@ public class GameManager : MonoBehaviour
         }
 
         // F5(강제 초기화): 현재 상태와 무관하게 클라이언트에 Ready를 송신하고 게임을 초기 상태로 되돌립니다.
-        if (Input.GetKeyDown(_forceReadyKey))
+        // 설정된 시작/리플레이/종료 키와 겹치면 강제 키 쪽을 무시합니다. (설정 키 우선)
+        if (GameKeyBindings.GetSecondaryKeyDown(_forceReadyKey))
         {
             ForceResetToReady();
         }
 
         // F6(강제 타임아웃): Playing 상태에서만, 타이머를 즉시 종료 지점으로 보내
         // 자연 타임아웃과 동일한 경로(End 송신 + 엔드패널1 표시 + VIDEO_UPLOAD 대기)를 타게 합니다.
-        if (Input.GetKeyDown(_forceTimeOutKey))
+        if (GameKeyBindings.GetSecondaryKeyDown(_forceTimeOutKey))
         {
             if (CurrentGameState == GameState.Playing && GameTimer.Instance != null)
             {
@@ -280,7 +289,7 @@ public class GameManager : MonoBehaviour
         }
     }
 
-    // 강제 초기화 키(F5)에서 호출됩니다. E 키의 Ready 복귀 동작을 상태 조건 없이 수행하되,
+    // 강제 초기화 키(F5)에서 호출됩니다. 종료키의 Ready 복귀 동작을 상태 조건 없이 수행하되,
     // 어떤 상태에서 눌려도 안전하도록 비디오 정지와 엔드패널 정리까지 함께 처리합니다.
     private void ForceResetToReady()
     {
@@ -348,7 +357,7 @@ public class GameManager : MonoBehaviour
             graphs[i].HardClearGraph();
     }
 
-    // R 키 입력에서 호출됩니다. GameTimer를 리플레이 모드로 일괄 세팅한 뒤
+    // 리플레이키 입력에서 호출됩니다. GameTimer를 리플레이 모드로 일괄 세팅한 뒤
     // OnReplay 이벤트로 모든 구독자(텍스트 recorder, 그래프 등)에게 알립니다.
     private void TriggerReplay()
     {

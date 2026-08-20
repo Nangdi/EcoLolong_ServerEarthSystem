@@ -11,9 +11,16 @@ public class TcpDebugPanelToggle : MonoBehaviour
     [Header("토글 키")]
     [SerializeField] private KeyCode _toggleKey = KeyCode.Escape;
 
+    // 키 겹침 안내(ESC 설정창)에서 읽어갑니다.
+    public KeyCode ToggleKey => _toggleKey;
+
     private void Update()
     {
         if (!_enableToggle)
+            return;
+
+        // 키 재지정 중의 ESC는 "취소"로만 쓰이므로(KeyRebindController) 패널을 토글하지 않습니다.
+        if (GameKeyBindings.IsRebinding)
             return;
 
         if (Input.GetKeyDown(_toggleKey))
