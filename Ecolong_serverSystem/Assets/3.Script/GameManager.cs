@@ -53,12 +53,15 @@ public class GameManager : MonoBehaviour
     [SerializeField] private KeyCode _forceReadyKey = KeyCode.F5;
     [Tooltip("Playing 상태에서만 동작. 15분 경과와 동일한 경로로 즉시 TimeOut(End 송신 + 업로드 대기 패널)으로 이동합니다.")]
     [SerializeField] private KeyCode _forceTimeOutKey = KeyCode.F6;
+    [Tooltip("TimeOut(영상 업로드 대기) 상태에서만 동작. 클라이언트의 VIDEO_UPLOAD를 기다리지 않고 바로 리플레이로 넘어갑니다.")]
+    [SerializeField] private KeyCode _forceVideoReadyKey = KeyCode.V;
     [FormerlySerializedAs("replayTimerSpeed")]
     [SerializeField] private float _replayTimerSpeed = 15f;
 
     // 키 겹침 안내(ESC 설정창)에서 읽어가는 강제 키입니다.
     public KeyCode ForceReadyKey => _forceReadyKey;
     public KeyCode ForceTimeOutKey => _forceTimeOutKey;
+    public KeyCode ForceVideoReadyKey => _forceVideoReadyKey;
     private void Awake()
     {
         if (Instance != null && Instance != this)
@@ -287,6 +290,35 @@ public class GameManager : MonoBehaviour
                 GameTimer.Instance.ForceTimeOver();
             }
         }
+
+        // V(강제 영상준비): 게임이 끝나고 영상 업로드를 기다리는 TimeOut 상태에서
+        // 클라이언트의 VIDEO_UPLOAD 없이 바로 다음 단계(리플레이)로 넘어갑니다.
+        if (GameKeyBindings.GetSecondaryKeyDown(_forceVideoReadyKey))
+        {
+            ForceAdvanceFromTimeOut();
+        }
+    }
+
+    // 강제 영상준비 키(V)에서 호출됩니다. 업로드 대기 중인 TimeOut 상태에서만 동작하며,
+    // 실제 클라이언트 없이 리플레이까지의 흐름을 점검할 때 사용하는 디버그 경로입니다.
+    private void ForceAdvanceFromTimeOut()
+    {
+        if (CurrentGameState != GameState.TimeOut)
+        {
+            Debug.Log($"[ForceKey] 영상 업로드 대기 상태가 아니라 무시합니다. 현재 상태: {CurrentGameState}");
+            return;
+        }
+
+        // TimeOut 상태에서는 IsReplay가 항상 true이므로, 타이머가 도는지로 리플레이 진행 여부를 판단합니다.
+        if (GameTimer.Instance != null && GameTimer.Instance.IsRunning)
+        {
+            Debug.Log("[ForceKey] 이미 리플레이가 진행 중이라 무시합니다.");
+            return;
+        }
+
+        Debug.Log($"[ForceKey] 영상 업로드 대기를 건너뛰고 리플레이 시작 ({_forceVideoReadyKey})");
+        _isVideoReady = true;
+        TriggerReplay();
     }
 
     // 강제 초기화 키(F5)에서 호출됩니다. 종료키의 Ready 복귀 동작을 상태 조건 없이 수행하되,
