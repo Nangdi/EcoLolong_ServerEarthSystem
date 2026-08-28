@@ -40,6 +40,17 @@ public class GameSettingData
     [SettingField("녹화 오디오 장치", SettingGroup.Developer, "dshow 장치 이름(예: 스테레오 믹스). 비우면 무음 녹화")]
     public string recordAudioDevice = "";
 
+    // ----- 플레이 데이터 CSV 저장 (GameDataCsvLogger) -----
+    // 한 판이 끝날 때마다 지구상태/누적 데이터를 CSV로 남깁니다.
+    [SettingField("플레이 데이터 CSV 저장", SettingGroup.Admin, "true = 한 판이 끝날 때마다 분석용 CSV 저장")]
+    public bool dataCsvEnabled = true;
+    // CSV 저장 폴더. 비워 두면 C:\kolon\Data를 사용합니다.
+    [SettingField("CSV 저장 폴더", SettingGroup.Admin, "판별 시계열 파일과 GameSummary.csv가 쌓이는 폴더. 비우면 C:\\kolon\\Data")]
+    public string dataCsvFolderPath = @"C:\kolon\Data";
+    // 시계열 샘플 간격(게임 시간 초). 작을수록 촘촘하게 기록되고 파일이 커집니다.
+    [SettingField("CSV 샘플 간격(초)", SettingGroup.Developer, "게임 시간 기준 기록 간격. 1 = 1초마다 한 줄")]
+    public float dataCsvSampleIntervalSeconds = 1f;
+
     // ----- 시작 / 리플레이 / 종료 키 (ESC 설정창의 키 설정 버튼에서 재지정) -----
     // UnityEngine.KeyCode 이름을 그대로 저장합니다. (예: "S", "R", "E", "F7", "Alpha1", "Space")
     [SettingField("시작 키", SettingGroup.Admin, "아래 \"키 설정\" 버튼으로 직접 눌러 지정할 수 있습니다")]
