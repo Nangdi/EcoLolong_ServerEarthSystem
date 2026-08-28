@@ -112,6 +112,13 @@ public class EndPanelController : MonoBehaviour
     // VIDEO_UPLOAD|파일명 수신 시 호출됩니다. 파일명 자체는 사용하지 않고, 수신만으로 준비 완료로 간주합니다.
     private void HandleVideoReady(string fileName)
     {
+        ShowScene2();
+    }
+
+    // 업로드 대기 화면(엔드패널1)을 닫고 Scene2 캔버스를 띄웁니다.
+    // VIDEO_UPLOAD 수신 시 자동으로 호출되며, 강제 영상준비 키(V)에서 GameManager가 직접 호출하기도 합니다.
+    public void ShowScene2()
+    {
         if (!_enableController)
             return;
 

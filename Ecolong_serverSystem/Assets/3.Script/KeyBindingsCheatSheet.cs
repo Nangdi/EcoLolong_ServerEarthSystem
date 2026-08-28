@@ -22,8 +22,9 @@ using UnityEngine;
 //  │          │ 게임 초기상태로 초기화        │  (모든 상태에서 동작)        │
 //  │  F6      │ [강제] 즉시 타임아웃          │ GameManager / GameTimer      │
 //  │          │ (End 송신+업로드 대기 패널)   │  (Playing 상태에서만)        │
-//  │  V       │ [강제] 영상 업로드 대기를     │ GameManager                  │
-//  │          │ 건너뛰고 리플레이 시작        │  (TimeOut 상태에서만)        │
+//  │  V       │ [강제] 영상 업로드 대기를     │ GameManager / EndPanel       │
+//  │          │ 건너뛰고 다음 화면(Scene2)로  │  (TimeOut 상태에서만)        │
+//  │          │ 이동 (리플레이는 R로 시작)    │                              │
 //  ├──────────┼───────────────────────────────┼──────────────────────────────┤
 //  │  ESC     │ 설정 패널 토글                │ SettingPanelToggle           │
 //  │  ESC     │ TCP 로그 패널 토글            │ TcpDebugPanelToggle          │
@@ -87,7 +88,7 @@ public class KeyBindingsCheatSheet : MonoBehaviour
             ("1 / 2 / 3", "[디버그] 화력 / 수력 / 태양광 누적 +N"),
             ("0", "[디버그] 누적 데이터 초기화"),
             ("T", "[디버그] 현재 메시지 전체 클라이언트 전송"),
-            ("V", "[디버그] 영상 업로드 대기 건너뛰고 리플레이 시작 (TimeOut)"),
+            ("V", "[디버그] 영상 업로드 대기 건너뛰고 다음 화면으로 (TimeOut)"),
             ("F1", "이 도움말 표시 / 숨김"),
         };
     }

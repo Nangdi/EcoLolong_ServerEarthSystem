@@ -300,7 +300,8 @@ public class GameManager : MonoBehaviour
     }
 
     // 강제 영상준비 키(V)에서 호출됩니다. 업로드 대기 중인 TimeOut 상태에서만 동작하며,
-    // 실제 클라이언트 없이 리플레이까지의 흐름을 점검할 때 사용하는 디버그 경로입니다.
+    // 클라이언트의 VIDEO_UPLOAD를 받은 것과 동일하게 다음 화면(Scene2)으로 넘깁니다.
+    // 리플레이와 녹화는 여기서 시작하지 않습니다. 리플레이키(기본 R)를 눌러야 시작됩니다.
     private void ForceAdvanceFromTimeOut()
     {
         if (CurrentGameState != GameState.TimeOut)
@@ -316,9 +317,15 @@ public class GameManager : MonoBehaviour
             return;
         }
 
-        Debug.Log($"[ForceKey] 영상 업로드 대기를 건너뛰고 리플레이 시작 ({_forceVideoReadyKey})");
+        Debug.Log($"[ForceKey] 영상 업로드 대기 건너뛰고 다음 화면으로 이동 ({_forceVideoReadyKey}). 리플레이는 {GameKeyBindings.ReplayKey} 키로 시작하세요.");
+
+        // 리플레이키 입력을 허용합니다. (원래는 클라이언트의 VIDEO_UPLOAD 수신으로 열립니다)
         _isVideoReady = true;
-        TriggerReplay();
+
+        // 업로드 대기 패널을 닫고 Scene2 캔버스를 띄웁니다. (VIDEO_UPLOAD 수신 시와 동일한 화면 전환)
+        EndPanelController[] endPanels = FindObjectsOfType<EndPanelController>();
+        for (int i = 0; i < endPanels.Length; i++)
+            endPanels[i].ShowScene2();
     }
 
     // 강제 초기화 키(F5)에서 호출됩니다. 종료키의 Ready 복귀 동작을 상태 조건 없이 수행하되,
