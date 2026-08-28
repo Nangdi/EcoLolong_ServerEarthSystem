@@ -25,7 +25,7 @@ public class GameSettingData
     [SettingField("리플레이 화면 녹화", SettingGroup.Admin, "true = 리플레이 구간을 화면 전체 녹화")]
     public bool recordReplay = true;
     // 녹화본 저장 폴더. 비워 두면 실행 파일 옆의 ReplayRecordings 폴더를 사용합니다.
-    [SettingField("녹화 저장 폴더", SettingGroup.Admin, "비우면 실행 파일 옆 ReplayRecordings 폴더")]
+    [SettingField("녹화본 저장 폴더", SettingGroup.Admin, "녹화된 mp4가 쌓이는 폴더. 비우면 실행 파일 옆 ReplayRecordings 폴더")]
     public string recordFolderPath = "";
     // 보관 기간(일). 프로그램이 켜질 때 이 기간이 지난 녹화본을 삭제합니다. 0 이하면 자동 삭제를 하지 않습니다.
     [SettingField("녹화 보관 기간(일)", SettingGroup.Admin, "프로그램 시작 시 이 기간이 지난 영상을 삭제. 0 = 삭제 안 함")]
@@ -34,7 +34,7 @@ public class GameSettingData
     [SettingField("녹화 프레임레이트(FPS)", SettingGroup.Developer)]
     public int recordFrameRate = 30;
     // ffmpeg.exe 경로. 비워 두면 StreamingAssets/ffmpeg/ffmpeg.exe → 시스템 PATH 순으로 찾습니다.
-    [SettingField("ffmpeg 경로", SettingGroup.Developer, "비우면 StreamingAssets/ffmpeg/ffmpeg.exe → 시스템 PATH 순으로 탐색")]
+    [SettingField("ffmpeg.exe 프로그램 위치", SettingGroup.Developer, "저장 폴더가 아니라 녹화 도구(ffmpeg.exe) 파일 경로입니다. 비우면 StreamingAssets/ffmpeg/ffmpeg.exe → 시스템 PATH 순으로 자동 탐색")]
     public string recordFFmpegPath = "";
     // 시스템 소리까지 녹음하려면 dshow 오디오 장치 이름을 입력합니다. 비워 두면 영상만 녹화합니다.
     [SettingField("녹화 오디오 장치", SettingGroup.Developer, "dshow 장치 이름(예: 스테레오 믹스). 비우면 무음 녹화")]
