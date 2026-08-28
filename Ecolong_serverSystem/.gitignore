@@ -97,3 +97,11 @@ InitTestScene*.unity*
 
 # Auto-generated scenes by play mode tests
 /[Aa]ssets/[Ii]nit[Tt]est[Ss]cene*.unity*
+
+# 리플레이 화면 녹화본 (ReplayScreenRecorder)
+/[Rr]eplay[Rr]ecordings/
+
+# 녹화용 ffmpeg 실행 파일 (용량이 커서 저장소에 포함하지 않습니다)
+/[Aa]ssets/StreamingAssets/ffmpeg/
+/[Aa]ssets/StreamingAssets/ffmpeg.exe
+/[Aa]ssets/StreamingAssets/ffmpeg*.meta

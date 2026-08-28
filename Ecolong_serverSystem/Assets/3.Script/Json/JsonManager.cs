@@ -14,6 +14,21 @@ public class GameSettingData
     // R 키 리플레이 재생 배율. 15면 실제 플레이 대비 15배 빠르게 리플레이가 진행됩니다.
     public float replayTimerSpeed = 15f;
 
+    // ----- 리플레이 화면 녹화 (ReplayScreenRecorder) -----
+    // 리플레이가 시작되면 화면 전체를 mp4로 녹화하고, 리플레이가 끝나면 저장합니다.
+    // 파일 이름은 녹화 시작 시각의 "yyyyMMdd_HHmmss.mp4" 형식입니다.
+    public bool recordReplay = true;
+    // 녹화본 저장 폴더. 비워 두면 실행 파일 옆의 ReplayRecordings 폴더를 사용합니다.
+    public string recordFolderPath = "";
+    // 보관 기간(일). 프로그램이 켜질 때 이 기간이 지난 녹화본을 삭제합니다. 0 이하면 자동 삭제를 하지 않습니다.
+    public int recordRetentionDays = 30;
+    // 녹화 프레임레이트(FPS).
+    public int recordFrameRate = 30;
+    // ffmpeg.exe 경로. 비워 두면 StreamingAssets/ffmpeg/ffmpeg.exe → 시스템 PATH 순으로 찾습니다.
+    public string recordFFmpegPath = "";
+    // 시스템 소리까지 녹음하려면 dshow 오디오 장치 이름을 입력합니다. 비워 두면 영상만 녹화합니다.
+    public string recordAudioDevice = "";
+
     // ----- 시작 / 리플레이 / 종료 키 (ESC 설정창의 키 설정 버튼에서 재지정) -----
     // UnityEngine.KeyCode 이름을 그대로 저장합니다. (예: "S", "R", "E", "F7", "Alpha1", "Space")
     public string startKey = "S";

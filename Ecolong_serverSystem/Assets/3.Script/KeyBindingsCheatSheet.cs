@@ -45,6 +45,9 @@ using UnityEngine;
 //    직접 눌러 지정할 수 있으며 gameSettingData.json에 저장됩니다.
 //  ※ 강제 키(F5/F6)는 GameManager 인스펙터(_forceReadyKey,
 //    _forceTimeOutKey)에서 변경할 수 있습니다.
+//  ※ 리플레이 키로 리플레이가 시작되면 ReplayScreenRecorder가 화면 전체를 녹화해
+//    ReplayRecordings 폴더에 "yyyyMMdd_HHmmss.mp4"로 저장합니다.
+//    (녹화에는 ffmpeg.exe가 필요하며, 30일이 지난 녹화본은 실행 시 자동 삭제됩니다)
 // =============================================================================
 public class KeyBindingsCheatSheet : MonoBehaviour
 {
