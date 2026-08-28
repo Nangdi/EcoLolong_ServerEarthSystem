@@ -139,45 +139,61 @@ public class GameSettingsPanelUI : MonoBehaviour
         _inputFieldTemplate.gameObject.SetActive(false);
 
         // 관리자 구역: 현장 운영자가 평소에 만지는 항목만 펼쳐 둡니다.
-        CreateSectionHeader("관리자 설정", "전시 운영 중 조정하는 항목입니다.", AdminHeaderColor);
+        CreateSectionHeader("관리자 설정", "전시 운영 중 조정하는 항목입니다.", AdminHeaderColor, out _);
         BuildRowsForGroup(fields, settings, SettingGroup.Admin, null);
 
-        // 개발자 구역: 헤더를 눌러 펼치고 접습니다. 기본은 접힌 상태입니다.
-        _developerHeader = CreateSectionHeader("개발자 설정", DeveloperSectionDescription, DeveloperHeaderColor);
+        // 개발자 구역: 헤더 줄을 눌러 펼치고 접습니다. 기본은 접힌 상태입니다.
+        _developerHeader = CreateSectionHeader("개발자 설정", DeveloperSectionDescription, DeveloperHeaderColor, out GameObject developerHeaderRow);
         BuildRowsForGroup(fields, settings, SettingGroup.Developer, _developerRows);
 
-        if (_developerHeader != null)
-        {
-            // 헤더 텍스트 자체를 클릭 영역으로 씁니다. (TextMeshProUGUI가 Graphic이라 별도 이미지가 필요 없습니다)
-            Button toggleButton = _developerHeader.gameObject.AddComponent<Button>();
-            toggleButton.targetGraphic = _developerHeader;
-            toggleButton.onClick.AddListener(ToggleDeveloperSection);
-        }
+        MakeRowClickable(developerHeaderRow, ToggleDeveloperSection);
 
         SetDeveloperSectionVisible(false);
     }
 
-    // 구역 제목 줄을 만듭니다. 입력칸 없이 제목 + 설명만 표시합니다.
-    private TextMeshProUGUI CreateSectionHeader(string title, string description, string colorHex)
+    // 구역 제목 줄을 만듭니다. 입력칸 없이 제목 + 설명만 표시하며, 만든 줄 오브젝트를 함께 돌려줍니다.
+    private TextMeshProUGUI CreateSectionHeader(string title, string description, string colorHex, out GameObject row)
     {
         // 값 행과 같은 레이아웃 구조로 만들어야 세로 레이아웃이 높이를 제대로 계산합니다.
-        GameObject row = new GameObject($"Header_{title}", typeof(RectTransform), typeof(HorizontalLayoutGroup));
+        row = new GameObject($"Header_{title}", typeof(RectTransform), typeof(HorizontalLayoutGroup));
         row.transform.SetParent(_settingPanel, false);
 
         HorizontalLayoutGroup rowLayout = row.GetComponent<HorizontalLayoutGroup>();
         rowLayout.childControlWidth = true;
         rowLayout.childControlHeight = true;
-        rowLayout.childForceExpandWidth = false;
+        // 제목 텍스트가 줄 너비를 가득 채우게 해서, 줄 어디를 눌러도 같은 영역으로 보이게 합니다.
+        rowLayout.childForceExpandWidth = true;
         rowLayout.spacing = 20f;
 
         TextMeshProUGUI header = Instantiate(_textTemplate, row.transform);
         header.name = "SectionHeader";
         header.text = BuildHeaderText(title, description, colorHex);
-        // 헤더를 클릭해 접고 펼치므로 레이캐스트를 켜 둡니다. (템플릿에서 꺼져 있을 수 있습니다)
-        header.raycastTarget = true;
         header.gameObject.SetActive(true);
 
         return header;
+    }
+
+    // 줄 전체(가로 폭 전부)를 클릭 영역으로 만듭니다.
+    // 글자에만 Button을 붙이면 글자 밖 여백이 눌리지 않으므로, 줄 오브젝트에 투명 Image를 깔고 Button을 붙입니다.
+    private static void MakeRowClickable(GameObject row, UnityEngine.Events.UnityAction onClick)
+    {
+        if (row == null)
+            return;
+
+        // 부모 세로 레이아웃이 폭을 제어하는 경우, 줄이 패널 가로 폭을 가득 채우도록 합니다.
+        LayoutElement layout = row.GetComponent<LayoutElement>();
+        if (layout == null)
+            layout = row.AddComponent<LayoutElement>();
+        layout.flexibleWidth = 1f;
+
+        // 거의 투명한 배경입니다. 레이캐스트를 받아 줄 전체가 눌리게 하고, 눌림/호버 색 변화도 여기에 나타납니다.
+        Image background = row.AddComponent<Image>();
+        background.color = new Color(1f, 1f, 1f, 0.06f);
+        background.raycastTarget = true;
+
+        Button button = row.AddComponent<Button>();
+        button.targetGraphic = background;
+        button.onClick.AddListener(onClick);
     }
 
     // 제목은 크고 진하게, 설명은 작고 흐리게 한 줄로 이어 붙입니다.
