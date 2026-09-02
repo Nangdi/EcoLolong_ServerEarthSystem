@@ -118,6 +118,22 @@ public class EarthStateLevelRecorder : MonoBehaviour
         _lastReplayedIndex = -1;
     }
 
+    // 이번 회차의 마지막 기록(=게임 종료 직전 값)을 텍스트에 그대로 적용합니다.
+    // 리플레이가 끝난 뒤 결과 화면을 띄울 때 GameManager가 호출합니다.
+    public void ApplyFinalSample()
+    {
+        if (_recordSamples.Count == 0)
+            return;
+
+        LevelSample sample = _recordSamples[_recordSamples.Count - 1];
+        SetLevelText(_sustainabilityLevelText, sample.SustainabilityLevel);
+        SetLevelText(_developmentLevelText, sample.DevelopmentLevel);
+        SetLevelText(_ecoLevelText, sample.EcoLevel);
+        SetTokenText(_currentCarbonText, sample.CurrentCarbon);
+        SetTokenText(_currentPowerGenerationText, sample.CurrentPowerGeneration);
+        _lastReplayedIndex = _recordSamples.Count - 1;
+    }
+
     // currentTime 이전의 마지막 샘플을 골라 세 텍스트에 한 번에 적용합니다.
     private void ApplyLevelsForReplayTime(float currentTime)
     {

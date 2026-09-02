@@ -417,6 +417,17 @@ public class TcpDataAggregator : MonoBehaviour
         NotifyDebugStateChanged();
     }
 
+    // 백업해 둔 누적값을 그대로 되돌려 놓고 TotalsChanged를 발행합니다.
+    // 리플레이가 끝난 뒤 게임 종료 직전의 발전/탄소/도시 수치를 화면에 다시 띄우는 용도입니다.
+    public void RestoreTotals(EnergyTotals source)
+    {
+        if (source == null)
+            return;
+
+        _energyTotals.CopyFrom(source);
+        NotifyTotalsChanged();
+    }
+
     private async Task AcceptClientsAsync(CancellationToken token)
     {
         while (!token.IsCancellationRequested)

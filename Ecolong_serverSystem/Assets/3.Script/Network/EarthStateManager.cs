@@ -238,6 +238,23 @@ public class EarthStateManager : MonoBehaviour
         StateChanged?.Invoke(_currentState);
     }
 
+    // 백업해 둔 스냅샷을 그대로 되돌려 놓고 StateChanged를 발행합니다.
+    // 리플레이가 끝난 뒤 게임 종료 직전의 지구 상태(레벨/ppm/온도/얼음/해수면)를 화면에 다시 띄우는 용도이며,
+    // 되살린 값이 계산으로 덮이지 않도록 상태 추적은 확실히 꺼 둡니다.
+    public void RestoreSnapshot(EarthStateSnapshot source)
+    {
+        if (source == null)
+            return;
+
+        _isStateTrackingActive = false;
+
+        if (GameManager.Instance != null)
+            _lastObservedGameState = GameManager.Instance.CurrentGameState;
+
+        _currentState.CopyFrom(source);
+        StateChanged?.Invoke(_currentState);
+    }
+
     // 탄소농도 변화 속도 가중치를 런타임에 변경합니다. 1=기본, 0이면 변화 정지, 1보다 크면 가속됩니다.
     public void SetCarbonPpmSpeedMultiplier(float multiplier)
     {

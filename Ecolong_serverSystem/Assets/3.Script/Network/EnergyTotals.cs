@@ -34,6 +34,27 @@ public class EnergyTotals
         currentPowerGeneration = 0;
     }
 
+    // 다른 누적값 묶음의 모든 항목을 그대로 복사합니다.
+    // 게임 종료 시점의 최종값을 백업해 두었다가 리플레이 종료 후 화면에 되살릴 때 사용합니다.
+    public void CopyFrom(EnergyTotals source)
+    {
+        if (source == null)
+            return;
+
+        thermalPower = source.thermalPower;
+        hydroPower = source.hydroPower;
+        solarPower = source.solarPower;
+        windPower = source.windPower;
+        hydrogen = source.hydrogen;
+        electricCount = source.electricCount;
+        totalCarbon = source.totalCarbon;
+        powerGeneration = source.powerGeneration;
+        cityEcoScore = source.cityEcoScore;
+        totalCityBuildingCount = source.totalCityBuildingCount;
+        captureCarbon = source.captureCarbon;
+        currentPowerGeneration = source.currentPowerGeneration;
+    }
+
     // 표준 키 이름에 맞는 누적값을 증가시킵니다.
     // 5종 발전(화력/수력/태양광/풍력/수소)은 들어온 count만큼 electricCount도 함께 누적합니다.
     public bool AddValue(string canonicalKey, int amount)

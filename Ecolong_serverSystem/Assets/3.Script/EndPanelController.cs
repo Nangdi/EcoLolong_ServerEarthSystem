@@ -8,10 +8,14 @@ public class EndPanelController : MonoBehaviour
     [Header("패널 참조")]
     [Tooltip("시작키를 누르고 게임 시간 경과 시 활성, VIDEO_UPLOAD 수신 시 비활성")]
     [SerializeField] private GameObject _endPanel1;
-    [Tooltip("리플레이키를 누르고 리플레이 시간 종료 시 활성, 종료키 입력 시 비활성")]
+    [Tooltip("리플레이 종료 후에는 결과 화면을 가리지 않도록 더 이상 자동으로 켜지 않습니다. 종료키/강제 초기화 시 닫는 용도로만 참조합니다.")]
     [SerializeField] private GameObject _endPanel2;
     [Tooltip("VIDEO_UPLOAD 수신 시 활성화할 Scene2 Canvas")]
     [SerializeField] private GameObject _scene2Canvas;
+
+    [Header("리플레이 종료 처리")]
+    [Tooltip("리플레이가 끝나면 Scene2 캔버스를 바로 닫아, 종료 직전 상태가 복원된 Scene1을 종료키 입력 때까지 보여줍니다.")]
+    [SerializeField] private bool _closeScene2OnReplayEnd = true;
 
     // 패널을 닫는 키는 GameManager와 동일하게 GameKeyBindings.EndKey(기본 E)를 사용합니다.
     // 값은 ESC 설정창의 "키 설정" 버튼에서 변경합니다.
@@ -104,7 +108,11 @@ public class EndPanelController : MonoBehaviour
                 SetActive(_endPanel1, true);
                 break;
             case GameState.Ended:
-                SetActive(_endPanel2, true);
+                // 리플레이가 끝났으므로 Scene2(리플레이 영상) 캔버스를 닫아
+                // GameManager가 복원해 둔 "종료 직전 상태"의 Scene1이 다시 보이게 합니다.
+                // 2_EndPanel은 결과 화면을 가리므로 띄우지 않고, 그대로 종료키 입력을 기다립니다.
+                if (_closeScene2OnReplayEnd)
+                    SetActive(_scene2Canvas, false);
                 break;
         }
     }

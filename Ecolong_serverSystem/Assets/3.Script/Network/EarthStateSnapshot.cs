@@ -65,6 +65,29 @@ public class EarthStateSnapshot
         SeaLevelRiseMeters = 0.001f;
     }
 
+    // 다른 스냅샷의 모든 값을 그대로 복사합니다.
+    // 게임 종료 시점의 최종 상태를 백업해 두었다가 리플레이 종료 후 화면에 되살릴 때 사용합니다.
+    public void CopyFrom(EarthStateSnapshot source)
+    {
+        if (source == null)
+            return;
+
+        CarbonCount = source.CarbonCount;
+        PowerGenerationCount = source.PowerGenerationCount;
+        ElectricCount = source.ElectricCount;
+        CurrentCarbon = source.CurrentCarbon;
+        CurrentPowerGeneration = source.CurrentPowerGeneration;
+        EcoLevel = source.EcoLevel;
+        DevelopmentLevel = source.DevelopmentLevel;
+        EcoLevelOffset = source.EcoLevelOffset;
+        StateName = source.StateName;
+        CarbonPpm = source.CarbonPpm;
+        CarbonPpmChangePerSecond = source.CarbonPpmChangePerSecond;
+        TemperatureDeltaC = source.TemperatureDeltaC;
+        ArcticIcePercent = source.ArcticIcePercent;
+        SeaLevelRiseMeters = source.SeaLevelRiseMeters;
+    }
+
     // 모든 필드를 한 번에 비교한 뒤 차이가 있는 경우에만 값을 갱신하고 true를 반환합니다.
     // 호출자(EarthStateManager)는 반환값으로 StateChanged 이벤트 발행 여부를 결정할 수 있습니다.
     public bool SetValues(

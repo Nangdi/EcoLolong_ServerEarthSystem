@@ -129,6 +129,14 @@ public class GameTimer : MonoBehaviour
         CurrentTime = gameTime;
     }
 
+    // 리플레이가 끝난 결과 화면에서 남은 시간을 00:00으로 고정 표시하기 위해 사용합니다.
+    // 타이머가 멈춘 상태(IsRunning=false)에서만 호출되므로 타임아웃 경로가 다시 타지는 않습니다.
+    public void ShowTimeOverState()
+    {
+        CurrentTime = gameTime;
+        OnTimeChanged?.Invoke(_currentTime);
+    }
+
     public void ResetTimer()
     {
         CurrentTime = 0f;

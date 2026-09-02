@@ -45,6 +45,12 @@ public class GameManager : MonoBehaviour
     private bool _isVideoReady;
     private bool _isVideoReadySubscribed;
 
+    // 게임 시간이 끝나는 시점(TimeOut)의 최종 상태를 담아 두는 백업본입니다.
+    // 리플레이가 끝나면 이 값을 Scene1에 되살려 "종료 직전 화면"을 종료키 입력 때까지 띄워 둡니다.
+    private readonly EarthStateSnapshot _finalStateSnapshot = new EarthStateSnapshot();
+    private readonly EnergyTotals _finalTotalsSnapshot = new EnergyTotals();
+    private bool _hasFinalSnapshot;
+
     // 시작/리플레이/종료 키는 GameKeyBindings(= gameSettingData.json의 startKey/replayKey/endKey)에서 가져옵니다.
     // 값 변경은 ESC 설정창의 "키 설정" 버튼(KeyRebindController)에서 합니다.
 
@@ -199,6 +205,11 @@ public class GameManager : MonoBehaviour
     private void GameManager_OnGameStart()
     {
         _isVideoReady = false; // 새 게임 사이클이 시작되므로 비디오 업로드 수신 대기로 초기화
+
+        // 직전 회차의 결과 화면(리플레이 종료 후 복원해 둔 종료 직전 상태)이 남아 있을 수 있으므로
+        // 새 판을 시작하기 전에 텍스트/그래프/타이머를 모두 초기 상태로 되돌립니다.
+        GameDataReset();
+
         tcpDataAggregator.SendStringToAllClients("Start");
 
         // 게임 시작 직후, 클라이언트가 진행도/리소스 속도를 맞출 수 있도록 게임 길이(초)를 별도 라인으로 송신합니다.
@@ -219,12 +230,16 @@ public class GameManager : MonoBehaviour
             // 정상 플레이 시간이 종료된 시점입니다. 클라이언트에 종료를 알리고 리플레이 직전 UI를 초기화합니다.
             tcpDataAggregator.SendStringToAllClients("End");
             Debug.Log("Time Out!");
+            // UI를 초기화하기 전에 이번 회차의 최종 상태를 백업해 둡니다. (리플레이 종료 후 결과 화면에 사용)
+            CaptureFinalSnapshot();
             // 그래프 _points는 보존되어 리플레이에서 그대로 사용됩니다.
             ResetGameDataForReplay();
         }
         else if (CurrentGameState.Equals(GameState.Ended))
         {
-            // 리플레이가 끝난 시점입니다. "Ready" 송신과 전체 초기화는 종료키 처리에서 담당합니다.
+            // 리플레이가 끝난 시점입니다. 종료 직전 상태를 Scene1에 되살려 두고 종료키 입력을 기다립니다.
+            // "Ready" 송신과 전체 초기화는 종료키 처리에서 담당합니다.
+            RestoreFinalSnapshot();
             Debug.Log($"Replay Ended! ({GameKeyBindings.EndKey} 키 대기)");
         }
     }
@@ -387,6 +402,9 @@ public class GameManager : MonoBehaviour
     // 각 데이터 소스를 리셋하면 구독 중인 텍스트 바인더가 이벤트로 자동 갱신됩니다.
     public void GameDataReset()
     {
+        // 결과 화면을 띄울 근거가 되는 백업본도 함께 버립니다. (다음 회차와 섞이지 않게)
+        _hasFinalSnapshot = false;
+
         // 텍스트/타이머/누적값 초기화는 리플레이 직전과 동일한 흐름을 재사용합니다.
         ResetGameDataForReplay();
 
@@ -394,6 +412,74 @@ public class GameManager : MonoBehaviour
         ResourceGraphs[] graphs = FindObjectsOfType<ResourceGraphs>();
         for (int i = 0; i < graphs.Length; i++)
             graphs[i].HardClearGraph();
+    }
+
+    // 게임 시간이 끝나는 시점(TimeOut)에, UI를 초기화하기 직전의 최종값을 백업합니다.
+    // 리플레이가 끝난 뒤 이 값으로 "종료 직전 화면"을 되살립니다.
+    private void CaptureFinalSnapshot()
+    {
+        _hasFinalSnapshot = false;
+
+        if (EarthStateManager.Instance == null || EarthStateManager.Instance.CurrentState == null)
+        {
+            Debug.LogWarning("[GameManager] 지구상태를 읽을 수 없어 최종 상태 백업을 건너뜁니다.");
+            return;
+        }
+
+        _finalStateSnapshot.CopyFrom(EarthStateManager.Instance.CurrentState);
+
+        if (tcpDataAggregator != null)
+            _finalTotalsSnapshot.CopyFrom(tcpDataAggregator.GetEnergyTotals());
+        else
+            _finalTotalsSnapshot.Clear();
+
+        _hasFinalSnapshot = true;
+    }
+
+    // 리플레이가 끝난 시점(Ended)에 호출됩니다. 백업해 둔 최종값을 Scene1에 되살려
+    // 종료키를 누를 때까지 게임 종료 직전 화면이 그대로 남아 있게 합니다.
+    private void RestoreFinalSnapshot()
+    {
+        if (!_hasFinalSnapshot)
+        {
+            Debug.Log("[GameManager] 백업된 최종 상태가 없어 결과 화면 복원을 건너뜁니다.");
+            return;
+        }
+
+        // 1) 누적 발전/탄소/도시 수치 텍스트 (TotalsChanged로 TcpDataTextBinder가 갱신)
+        if (tcpDataAggregator != null)
+            tcpDataAggregator.RestoreTotals(_finalTotalsSnapshot);
+
+        // 2) 지구상태 (StateChanged로 슬라이더/지구 이미지/북극얼음/해수면/ppm·온도 텍스트가 갱신)
+        if (EarthStateManager.Instance != null)
+            EarthStateManager.Instance.RestoreSnapshot(_finalStateSnapshot);
+
+        // 3) 레벨/현재 토큰 텍스트는 기록 기반이므로 마지막 샘플을 직접 적용합니다.
+        EarthStateLevelRecorder[] recorders = FindObjectsOfType<EarthStateLevelRecorder>();
+        for (int i = 0; i < recorders.Length; i++)
+            recorders[i].ApplyFinalSample();
+
+        // 4) Scene1 그래프는 기록된 곡선 전체를 다시 그리고,
+        //    리플레이(Scene2) 전용 그래프는 결과 화면에 남지 않도록 선/채우기를 지웁니다.
+        ResourceGraphs[] graphs = FindObjectsOfType<ResourceGraphs>();
+        for (int i = 0; i < graphs.Length; i++)
+        {
+            if (graphs[i].IsReplayGraph)
+                graphs[i].SoftClearGraph();
+            else
+                graphs[i].ShowRecordedGraphFull();
+        }
+
+        // 5) 남은 시간은 종료 상태인 00:00으로 고정 표시합니다.
+        if (GameTimer.Instance != null)
+            GameTimer.Instance.ShowTimeOverState();
+
+        // 6) 리플레이 영상은 재생을 끝내고 화면에서 내립니다.
+        VideoPlaybackController[] videoControllers = FindObjectsOfType<VideoPlaybackController>();
+        for (int i = 0; i < videoControllers.Length; i++)
+            videoControllers[i].StopPlayback();
+
+        Debug.Log("[GameManager] 리플레이 종료 → 종료 직전 상태를 Scene1에 복원했습니다.");
     }
 
     // 리플레이키 입력에서 호출됩니다. GameTimer를 리플레이 모드로 일괄 세팅한 뒤

@@ -76,6 +76,10 @@ public class ResourceGraphs : MonoBehaviour
     // 가장 최근에 그려진 그래프 포인트의 값(현재 토큰량)입니다. 외부에서도 읽을 수 있습니다.
     public float CurrentValue { get; private set; }
 
+    // 리플레이(Scene2) 전용 그래프인지 여부입니다. 리플레이 종료 후 결과 화면을 구성할 때
+    // Scene1 그래프만 다시 그리고 리플레이 그래프는 감추기 위해 GameManager가 읽어갑니다.
+    public bool IsReplayGraph => _isReplayGraph;
+
     private int _tempValue;
     private Coroutine _recordCycleCoroutine;
     private Coroutine _replayCoroutine;
@@ -146,7 +150,22 @@ public class ResourceGraphs : MonoBehaviour
         _initialGraphValue = value;
     }
 
+    // 기록된 포인트를 타이머 시간과 무관하게 끝까지 한 번에 그립니다.
+    // 리플레이가 끝난 뒤 게임 종료 직전의 그래프 곡선 전체를 화면에 남겨 두는 용도입니다.
+    public void ShowRecordedGraphFull()
+    {
+        List<GraphPoint> source = _recordPoints != null && _recordPoints.Count > 0 ? _recordPoints : _points;
+        RedrawGraph(source, float.MaxValue);
+    }
+
     private void RedrawGraph(List<GraphPoint> currentPoints)
+    {
+        RedrawGraph(currentPoints, GameTimer.Instance != null ? GameTimer.Instance.CurrentTime : 0f);
+    }
+
+    // timeLimit 이하의 포인트까지만 그립니다. 리플레이/플레이 중에는 타이머의 현재 시각이,
+    // 최종 결과 표시에서는 float.MaxValue가 들어와 전체 곡선이 그려집니다.
+    private void RedrawGraph(List<GraphPoint> currentPoints, float timeLimit)
     {
 
         if (currentPoints == null || currentPoints.Count == 0)
@@ -157,7 +176,7 @@ public class ResourceGraphs : MonoBehaviour
             return;
         }
 
-        float currentTime = GameTimer.Instance.CurrentTime;
+        float currentTime = timeLimit;
         Vector3 size = _maxPoint.position - _origin.position;
         List<Vector3> renderedPositions = new List<Vector3>();
 

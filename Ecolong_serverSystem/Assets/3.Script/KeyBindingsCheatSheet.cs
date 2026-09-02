@@ -12,11 +12,10 @@ using UnityEngine;
 //  ├──────────┼───────────────────────────────┼──────────────────────────────┤
 //  │  S(기본) │ 게임 시작 / 재시작            │ GameManager                  │
 //  │          │                               │  (Ready 또는 Playing 상태)   │
-//  │  R(기본) │ 리플레이 시작                 │ GameManager / EndPanel       │
-//  │          │                               │  (TimeOut+영상준비 또는      │
-//  │          │                               │   Ended 상태)                │
-//  │  E(기본) │ 처음 상태(Ready)로 복귀 /     │ GameManager / EndPanel       │
-//  │          │ 엔드패널2 닫기                │  (Ended & 리플레이중 아님)   │
+//  │  R(기본) │ 리플레이 시작                 │ GameManager                  │
+//  │          │ (Ended에서는 재생 불가)       │  (TimeOut + 영상 준비 완료)  │
+//  │  E(기본) │ 결과 화면을 닫고              │ GameManager / EndPanel       │
+//  │          │ 처음 상태(Ready)로 복귀       │  (Ended & 리플레이중 아님)   │
 //  ├──────────┼───────────────────────────────┼──────────────────────────────┤
 //  │  F5      │ [강제] Ready 송신 후          │ GameManager                  │
 //  │          │ 게임 초기상태로 초기화        │  (모든 상태에서 동작)        │
@@ -39,6 +38,9 @@ using UnityEngine;
 //  │  V       │ [디버그] VIDEO_UPLOAD 수신    │                              │
 //  │          │         시뮬레이션(위 V와 동시)│                             │
 //  ├──────────┼───────────────────────────────┼──────────────────────────────┤
+//  │  ] / [   │ [디버그] 지구 이미지 다음/    │ EarthSpriteCrossfader        │
+//  │          │          이전 단계로 전환     │                              │
+//  ├──────────┼───────────────────────────────┼──────────────────────────────┤
 //  │  F1      │ 이 단축키 도움말 표시/숨김    │ KeyBindingsCheatSheet        │
 //  └──────────┴───────────────────────────────┴──────────────────────────────┘
 //
@@ -46,8 +48,11 @@ using UnityEngine;
 //    TcpDataAggregator 인스펙터에서 변경할 수 있습니다.
 //  ※ S/R/E(시작·리플레이·종료) 키는 ESC 설정창의 "키 설정" 버튼에서
 //    직접 눌러 지정할 수 있으며 gameSettingData.json에 저장됩니다.
-//  ※ 강제 키(F5/F6)는 GameManager 인스펙터(_forceReadyKey,
-//    _forceTimeOutKey)에서 변경할 수 있습니다.
+//  ※ 강제 키(F5/F6/V)는 GameManager 인스펙터(_forceReadyKey,
+//    _forceTimeOutKey, _forceVideoReadyKey)에서 변경할 수 있습니다.
+//  ※ 리플레이가 끝나면(Ended) 엔드패널2는 뜨지 않습니다. Scene2 캔버스와 리플레이 그래프가
+//    자동으로 닫히고, 게임 종료 직전 상태(그래프·레벨·지구 이미지·수치, 남은 시간 00:00)가
+//    Scene1에 복원된 채로 종료키 입력을 기다립니다.
 //  ※ 리플레이 키로 리플레이가 시작되면 ReplayScreenRecorder가 화면 전체를 녹화해
 //    ReplayRecordings 폴더에 "yyyyMMdd_HHmmss.mp4"로 저장합니다.
 //    (녹화에는 ffmpeg.exe가 필요하며, 30일이 지난 녹화본은 실행 시 자동 삭제됩니다)
@@ -80,8 +85,8 @@ public class KeyBindingsCheatSheet : MonoBehaviour
         _entries = new (string key, string desc)[]
         {
             (GameKeyBindings.StartKey.ToString(), "게임 시작 / 재시작 (Ready·Playing)"),
-            (GameKeyBindings.ReplayKey.ToString(), "리플레이 시작 (TimeOut+영상준비·Ended)"),
-            (GameKeyBindings.EndKey.ToString(), "처음 상태로 복귀 / 엔드패널2 닫기 (Ended)"),
+            (GameKeyBindings.ReplayKey.ToString(), "리플레이 시작 (TimeOut + 영상 준비 완료)"),
+            (GameKeyBindings.EndKey.ToString(), "결과 화면 닫고 처음 상태로 복귀 (Ended)"),
             ("F5", "[강제] Ready 송신 + 게임 초기상태 복귀 (모든 상태)"),
             ("F6", "[강제] 즉시 타임아웃 → 업로드 대기 패널 (Playing)"),
             ("ESC", "설정 패널 · TCP 로그 패널 토글"),
@@ -89,6 +94,7 @@ public class KeyBindingsCheatSheet : MonoBehaviour
             ("0", "[디버그] 누적 데이터 초기화"),
             ("T", "[디버그] 현재 메시지 전체 클라이언트 전송"),
             ("V", "[디버그] 영상 업로드 대기 건너뛰고 다음 화면으로 (TimeOut)"),
+            ("] / [", "[디버그] 지구 이미지 다음 / 이전 단계로 전환"),
             ("F1", "이 도움말 표시 / 숨김"),
         };
     }
