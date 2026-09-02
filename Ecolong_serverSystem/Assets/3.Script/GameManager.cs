@@ -59,7 +59,7 @@ public class GameManager : MonoBehaviour
     [SerializeField] private KeyCode _forceReadyKey = KeyCode.F5;
     [Tooltip("Playing 상태에서만 동작. 15분 경과와 동일한 경로로 즉시 TimeOut(End 송신 + 업로드 대기 패널)으로 이동합니다.")]
     [SerializeField] private KeyCode _forceTimeOutKey = KeyCode.F6;
-    [Tooltip("TimeOut(영상 업로드 대기) 상태에서만 동작. 클라이언트의 VIDEO_UPLOAD를 기다리지 않고 바로 리플레이로 넘어갑니다.")]
+    [Tooltip("TimeOut(영상 업로드 대기) 상태에서만 동작. 클라이언트의 VIDEO_UPLOAD를 수신한 것과 동일하게 처리합니다. (설정한 Scene2 전환 대기 시간 뒤 화면이 넘어가고, 리플레이는 리플레이키로 시작)")]
     [SerializeField] private KeyCode _forceVideoReadyKey = KeyCode.V;
     [FormerlySerializedAs("replayTimerSpeed")]
     [SerializeField] private float _replayTimerSpeed = 15f;
@@ -315,7 +315,8 @@ public class GameManager : MonoBehaviour
     }
 
     // 강제 영상준비 키(V)에서 호출됩니다. 업로드 대기 중인 TimeOut 상태에서만 동작하며,
-    // 클라이언트의 VIDEO_UPLOAD를 받은 것과 동일하게 다음 화면(Scene2)으로 넘깁니다.
+    // 클라이언트의 VIDEO_UPLOAD를 받은 것과 완전히 동일하게 처리합니다.
+    // (설정창의 "Scene2 전환 대기(초)"만큼 기다린 뒤 Scene2로 넘어갑니다)
     // 리플레이와 녹화는 여기서 시작하지 않습니다. 리플레이키(기본 R)를 눌러야 시작됩니다.
     private void ForceAdvanceFromTimeOut()
     {
@@ -332,15 +333,15 @@ public class GameManager : MonoBehaviour
             return;
         }
 
-        Debug.Log($"[ForceKey] 영상 업로드 대기 건너뛰고 다음 화면으로 이동 ({_forceVideoReadyKey}). 리플레이는 {GameKeyBindings.ReplayKey} 키로 시작하세요.");
+        Debug.Log($"[ForceKey] 영상 업로드 신호 수신으로 간주 ({_forceVideoReadyKey}). 리플레이는 {GameKeyBindings.ReplayKey} 키로 시작하세요.");
 
         // 리플레이키 입력을 허용합니다. (원래는 클라이언트의 VIDEO_UPLOAD 수신으로 열립니다)
         _isVideoReady = true;
 
-        // 업로드 대기 패널을 닫고 Scene2 캔버스를 띄웁니다. (VIDEO_UPLOAD 수신 시와 동일한 화면 전환)
+        // 설정된 대기 시간이 지나면 업로드 대기 패널을 닫고 Scene2 캔버스를 띄웁니다. (VIDEO_UPLOAD 수신 시와 동일한 경로)
         EndPanelController[] endPanels = FindObjectsOfType<EndPanelController>();
         for (int i = 0; i < endPanels.Length; i++)
-            endPanels[i].ShowScene2();
+            endPanels[i].NotifyVideoReady();
     }
 
     // 강제 초기화 키(F5)에서 호출됩니다. 종료키의 Ready 복귀 동작을 상태 조건 없이 수행하되,

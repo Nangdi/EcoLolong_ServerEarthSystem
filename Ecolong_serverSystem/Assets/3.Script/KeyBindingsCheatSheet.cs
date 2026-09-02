@@ -21,9 +21,9 @@ using UnityEngine;
 //  │          │ 게임 초기상태로 초기화        │  (모든 상태에서 동작)        │
 //  │  F6      │ [강제] 즉시 타임아웃          │ GameManager / GameTimer      │
 //  │          │ (End 송신+업로드 대기 패널)   │  (Playing 상태에서만)        │
-//  │  V       │ [강제] 영상 업로드 대기를     │ GameManager / EndPanel       │
-//  │          │ 건너뛰고 다음 화면(Scene2)로  │  (TimeOut 상태에서만)        │
-//  │          │ 이동 (리플레이는 R로 시작)    │                              │
+//  │  V       │ [강제] 영상 업로드 완료 신호  │ GameManager / EndPanel       │
+//  │          │ 발생 (설정된 대기 시간 뒤     │  (TimeOut 상태에서만)        │
+//  │          │ Scene2 전환 / 리플레이는 R)   │                              │
 //  ├──────────┼───────────────────────────────┼──────────────────────────────┤
 //  │  ESC     │ 설정 패널 토글                │ SettingPanelToggle           │
 //  │  ESC     │ TCP 로그 패널 토글            │ TcpDebugPanelToggle          │

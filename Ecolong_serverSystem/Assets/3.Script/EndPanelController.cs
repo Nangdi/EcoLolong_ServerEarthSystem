@@ -1,3 +1,4 @@
+using System.Collections;
 using UnityEngine;
 
 public class EndPanelController : MonoBehaviour
@@ -13,6 +14,10 @@ public class EndPanelController : MonoBehaviour
     [Tooltip("VIDEO_UPLOAD 수신 시 활성화할 Scene2 Canvas")]
     [SerializeField] private GameObject _scene2Canvas;
 
+    [Header("Scene2 전환 대기")]
+    [Tooltip("영상 업로드(VIDEO_UPLOAD) 수신 후 Scene2 캔버스를 띄우기까지 기다릴 시간(초). 실제 값은 ESC 설정창 관리자 설정의 \"Scene2 전환 대기(초)\"에서 조절하며, 여기 값은 JsonManager가 없을 때만 쓰이는 예비값입니다.")]
+    [SerializeField] private float _fallbackScene2TransitionDelay = 3f;
+
     [Header("리플레이 종료 처리")]
     [Tooltip("리플레이가 끝나면 Scene2 캔버스를 바로 닫아, 종료 직전 상태가 복원된 Scene1을 종료키 입력 때까지 보여줍니다.")]
     [SerializeField] private bool _closeScene2OnReplayEnd = true;
@@ -23,6 +28,9 @@ public class EndPanelController : MonoBehaviour
     private TcpDataAggregator _aggregator;
     private GameTimer _gameTimer;
     private bool _isSubscribed;
+
+    // 업로드 수신 후 Scene2 전환을 기다리는 코루틴입니다. 대기 도중 종료/초기화되면 취소합니다.
+    private Coroutine _scene2DelayCoroutine;
 
     private void Start()
     {
@@ -56,6 +64,7 @@ public class EndPanelController : MonoBehaviour
             if (gameManager == null || gameManager.CurrentGameState != GameState.Ended || gameManager.IsReplay)
                 return;
 
+            CancelScene2Delay();
             SetActive(_endPanel2, false);
             SetActive(_scene2Canvas, false);
         }
@@ -112,7 +121,10 @@ public class EndPanelController : MonoBehaviour
                 // GameManager가 복원해 둔 "종료 직전 상태"의 Scene1이 다시 보이게 합니다.
                 // 2_EndPanel은 결과 화면을 가리므로 띄우지 않고, 그대로 종료키 입력을 기다립니다.
                 if (_closeScene2OnReplayEnd)
+                {
+                    CancelScene2Delay();
                     SetActive(_scene2Canvas, false);
+                }
                 break;
         }
     }
@@ -120,16 +132,67 @@ public class EndPanelController : MonoBehaviour
     // VIDEO_UPLOAD|파일명 수신 시 호출됩니다. 파일명 자체는 사용하지 않고, 수신만으로 준비 완료로 간주합니다.
     private void HandleVideoReady(string fileName)
     {
+        NotifyVideoReady();
+    }
+
+    // 영상 업로드 완료 신호를 받았을 때의 화면 전환입니다.
+    // 업로드가 끝나자마자 화면이 바뀌면 너무 급하게 느껴지므로, 설정된 대기 시간만큼 업로드 대기 화면을 더 보여준 뒤 전환합니다.
+    // VIDEO_UPLOAD 수신과 강제 영상준비 키(V)가 모두 이 경로를 탑니다.
+    public void NotifyVideoReady()
+    {
+        if (!_enableController)
+            return;
+
+        float delay = GetScene2TransitionDelay();
+        if (delay <= 0f)
+        {
+            ShowScene2();
+            return;
+        }
+
+        CancelScene2Delay();
+        _scene2DelayCoroutine = StartCoroutine(ShowScene2AfterDelay(delay));
+    }
+
+    // ESC 설정창 관리자 설정의 "Scene2 전환 대기(초)" 값을 읽어옵니다. JsonManager가 없으면 인스펙터 예비값을 씁니다.
+    private float GetScene2TransitionDelay()
+    {
+        float delay = JsonManager.instance != null && JsonManager.instance.gameSettingData != null
+            ? JsonManager.instance.gameSettingData.scene2TransitionDelay
+            : _fallbackScene2TransitionDelay;
+
+        return Mathf.Max(0f, delay);
+    }
+
+    private IEnumerator ShowScene2AfterDelay(float delay)
+    {
+        Debug.Log($"[EndPanel] 영상 업로드 수신 / {delay:0.##}초 후 Scene2로 전환합니다.");
+
+        // 리플레이 구간에서 Time.timeScale이 바뀌어도 대기 시간이 흔들리지 않도록 실제 시간으로 기다립니다.
+        yield return new WaitForSecondsRealtime(delay);
+
+        _scene2DelayCoroutine = null;
         ShowScene2();
     }
 
+    // 대기 중이던 Scene2 전환을 취소합니다. (종료키 / 강제 초기화 / 리플레이 종료 시)
+    private void CancelScene2Delay()
+    {
+        if (_scene2DelayCoroutine == null)
+            return;
+
+        StopCoroutine(_scene2DelayCoroutine);
+        _scene2DelayCoroutine = null;
+    }
+
     // 업로드 대기 화면(엔드패널1)을 닫고 Scene2 캔버스를 띄웁니다.
-    // VIDEO_UPLOAD 수신 시 자동으로 호출되며, 강제 영상준비 키(V)에서 GameManager가 직접 호출하기도 합니다.
+    // 업로드 신호를 받고 대기 시간이 지나면 호출됩니다. 대기 없이 곧바로 전환해야 할 때만 외부에서 직접 호출하세요.
     public void ShowScene2()
     {
         if (!_enableController)
             return;
 
+        CancelScene2Delay();
         SetActive(_endPanel1, false);
         SetActive(_scene2Canvas, true);
     }
@@ -137,6 +200,7 @@ public class EndPanelController : MonoBehaviour
     // 강제 초기화(F5) 시 GameManager가 호출합니다. 상태 조건 없이 모든 패널을 닫습니다.
     public void ForceCloseAllPanels()
     {
+        CancelScene2Delay();
         SetActive(_endPanel1, false);
         SetActive(_endPanel2, false);
         SetActive(_scene2Canvas, false);

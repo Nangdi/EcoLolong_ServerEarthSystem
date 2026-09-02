@@ -1,4 +1,4 @@
-using System;
+﻿using System;
 using System.Collections;
 using System.Collections.Generic;
 using System.IO;
@@ -18,6 +18,9 @@ public class GameSettingData
     // 리플레이 재생 배율. 15면 실제 플레이 대비 15배 빠르게 리플레이가 진행됩니다.
     [SettingField("리플레이 재생 배율", SettingGroup.Admin, "15 = 실제 플레이보다 15배 빠르게 재생")]
     public float replayTimerSpeed = 15f;
+    // VIDEO_UPLOAD(영상 업로드 완료) 수신 후 Scene2 캔버스를 띄우기까지 기다리는 시간(초). 0이면 즉시 전환합니다.
+    [SettingField("Scene2 전환 대기(초)", SettingGroup.Admin, "영상 업로드 완료 후 이 시간만큼 대기한 뒤 Scene2로 전환. 0 = 즉시")]
+    public float scene2TransitionDelay = 3f;
 
     // ----- 리플레이 화면 녹화 (ReplayScreenRecorder) -----
     // 리플레이가 시작되면 화면 전체를 mp4로 녹화하고, 리플레이가 끝나면 저장합니다.
