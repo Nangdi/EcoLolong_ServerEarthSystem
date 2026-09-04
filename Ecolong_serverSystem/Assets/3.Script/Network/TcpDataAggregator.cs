@@ -53,6 +53,12 @@ public class TcpDataAggregator : MonoBehaviour
     [FormerlySerializedAs("autoStart")]
     [SerializeField] private bool _autoStart = true;
 
+    [Header("게임 시작값")]
+    [Tooltip("게임 시작(초기화) 시 기본으로 들고 시작하는 탄소토큰 개수입니다. \"현재 탄소\"만 이 값부터 시작하고, " +
+             "누적 생산량(누적 탄소)에는 포함되지 않습니다.")]
+    [Min(0)]
+    [SerializeField] private int _initialCarbonTokenCount = 30;
+
     [Header("Keyboard Test")]
     [FormerlySerializedAs("enableKeyboardTest")]
     [SerializeField] private bool _enableKeyboardTest = true;
@@ -64,6 +70,17 @@ public class TcpDataAggregator : MonoBehaviour
     [SerializeField] private KeyCode _clearTestKey = KeyCode.Alpha0;
     [FormerlySerializedAs("testAddCount")]
     [SerializeField] private int _testAddCount = 1;
+    [Tooltip("디버그용: 탄소토큰 개수를 이 값만큼 늘립니다.")]
+    [SerializeField] private KeyCode _carbonIncreaseTestKey = KeyCode.Alpha4;
+    [Tooltip("디버그용: 탄소토큰 개수를 이 값만큼 줄입니다. (현재 보유량 0이 하한)")]
+    [SerializeField] private KeyCode _carbonDecreaseTestKey = KeyCode.Alpha5;
+    [Tooltip("디버그용: 발전토큰 개수를 이 값만큼 늘립니다.")]
+    [SerializeField] private KeyCode _powerGenerationIncreaseTestKey = KeyCode.Alpha6;
+    [Tooltip("디버그용: 발전토큰 개수를 이 값만큼 줄입니다. (0이 하한)")]
+    [SerializeField] private KeyCode _powerGenerationDecreaseTestKey = KeyCode.Alpha7;
+    [Tooltip("탄소/발전 토큰 디버그 키를 한 번 누를 때 움직이는 개수입니다.")]
+    [Min(1)]
+    [SerializeField] private int _tokenTestAdjustCount = 5;
     [FormerlySerializedAs("sendMessageTestKey")]
     [SerializeField] private KeyCode _sendMessageTestKey = KeyCode.T;
     [Tooltip("디버그용: 누르면 'VIDEO_UPLOAD|test.mp4' TCP 수신을 시뮬레이션합니다.")]
@@ -130,6 +147,10 @@ public class TcpDataAggregator : MonoBehaviour
         }
 
         Instance = this;
+
+        // 다른 컴포넌트가 Start에서 누적값을 읽어갈 때 이미 시작값(기본 지급 탄소토큰)이 들어 있도록
+        // Awake 단계에서 먼저 채워 둡니다. json 설정값은 Start에서 다시 반영합니다.
+        _energyTotals.Clear(_initialCarbonTokenCount);
     }
 
     // 씬 시작 시 설정값에 따라 TCP 서버를 자동으로 시작합니다.
@@ -137,6 +158,9 @@ public class TcpDataAggregator : MonoBehaviour
     {
         // port.json에 저장된 TCP 설정값을 우선 적용합니다. JsonManager가 없으면 인스펙터 값을 그대로 사용합니다.
         ApplyTcpSettingsFromJson();
+        // gameSettingData.json의 "시작 탄소토큰 개수"를 반영한 뒤 시작값으로 초기화합니다.
+        ApplyGameSettingsFromJson();
+        _energyTotals.Clear(_initialCarbonTokenCount);
 
         if (_autoStart)
             StartServer();
@@ -148,7 +172,7 @@ public class TcpDataAggregator : MonoBehaviour
     // 백그라운드에서 받은 TCP 데이터를 Unity 메인 스레드에서 합산하고 이벤트를 발생시킵니다.
     private void Update()
     {
-        // HandleKeyboardTestInput();
+        HandleKeyboardTestInput();
 
         ProcessVideoQueue();
 
@@ -178,7 +202,8 @@ public class TcpDataAggregator : MonoBehaviour
 
         // 게임 플레이 중일 때만 수신 패킷을 누적합니다.
         // Ready/TimeOut(리플레이 대기)/Ended 등에서는 큐만 비워 다음 게임에 이월되지 않게 하고,
-        // 누적값은 초기화 상태(0)를 유지해 리플레이 대기 화면에서 토큰 갯수가 0으로 보이도록 합니다.
+        // 누적값은 초기화 상태(= 기본 지급 탄소토큰 _initialCarbonTokenCount)를 유지해
+        // 대기 화면이 항상 "게임을 막 시작했을 때"와 같은 값으로 보이도록 합니다.
         bool accumulate = GameManager.Instance == null || GameManager.Instance.CurrentGameState == GameState.Playing;
 
         while (_receivedQueue.TryDequeue(out TcpDataReceivedInfo packet))
@@ -209,6 +234,10 @@ public class TcpDataAggregator : MonoBehaviour
         results.Add(new KeyUsage(_sendATestKey, "[디버그] 화력 누적"));
         results.Add(new KeyUsage(_sendBTestKey, "[디버그] 수력 누적"));
         results.Add(new KeyUsage(SendSolarTestKey, "[디버그] 태양광 누적"));
+        results.Add(new KeyUsage(_carbonIncreaseTestKey, $"[디버그] 탄소토큰 +{_tokenTestAdjustCount}"));
+        results.Add(new KeyUsage(_carbonDecreaseTestKey, $"[디버그] 탄소토큰 -{_tokenTestAdjustCount}"));
+        results.Add(new KeyUsage(_powerGenerationIncreaseTestKey, $"[디버그] 발전토큰 +{_tokenTestAdjustCount}"));
+        results.Add(new KeyUsage(_powerGenerationDecreaseTestKey, $"[디버그] 발전토큰 -{_tokenTestAdjustCount}"));
         results.Add(new KeyUsage(_clearTestKey, "[디버그] 누적 초기화"));
         results.Add(new KeyUsage(_sendMessageTestKey, "[디버그] 메시지 전송"));
         results.Add(new KeyUsage(_sendVideoTestKey, "[디버그] VIDEO_UPLOAD 시뮬레이션"));
@@ -226,6 +255,16 @@ public class TcpDataAggregator : MonoBehaviour
 
         if (GameKeyBindings.GetSecondaryKeyDown(_sendBTestKey))
             AddData("수력", _testAddCount);
+
+        // 탄소/발전 토큰 증감: 지구 상태(친환경도/발전도/탄소농도)를 바로 흔들어 볼 수 있는 디버그 키입니다.
+        if (GameKeyBindings.GetSecondaryKeyDown(_carbonIncreaseTestKey))
+            AdjustCarbonTokens(_tokenTestAdjustCount);
+        if (GameKeyBindings.GetSecondaryKeyDown(_carbonDecreaseTestKey))
+            AdjustCarbonTokens(-_tokenTestAdjustCount);
+        if (GameKeyBindings.GetSecondaryKeyDown(_powerGenerationIncreaseTestKey))
+            AdjustPowerGenerationTokens(_tokenTestAdjustCount);
+        if (GameKeyBindings.GetSecondaryKeyDown(_powerGenerationDecreaseTestKey))
+            AdjustPowerGenerationTokens(-_tokenTestAdjustCount);
 
         if (GameKeyBindings.GetSecondaryKeyDown(_clearTestKey))
             ClearTotals();
@@ -402,9 +441,37 @@ public class TcpDataAggregator : MonoBehaviour
         AddRecentMessage($"[송신] {message}");
     }
 
+    // 게임 시작 시 기본으로 지급되는 탄소토큰 개수입니다.
+    public int InitialCarbonTokenCount => _initialCarbonTokenCount;
+
+    // [디버그] 탄소토큰 개수를 즉시 증감하고 UI에 반영합니다.
+    // TCP 수신 큐를 거치지 않으므로 게임 상태(Ready/Playing 등)와 무관하게 바로 적용됩니다.
+    public void AdjustCarbonTokens(int delta)
+    {
+        if (delta == 0)
+            return;
+
+        _energyTotals.AdjustCarbonTokens(delta);
+        NotifyTotalsChanged();
+        NotifyDebugStateChanged();
+        AddRecentMessage($"[디버그] 탄소토큰 {(delta > 0 ? "+" : "")}{delta} → 현재 {_energyTotals.GetCurrentCarbon()}개");
+    }
+
+    // [디버그] 발전토큰 개수를 즉시 증감하고 UI에 반영합니다.
+    public void AdjustPowerGenerationTokens(int delta)
+    {
+        if (delta == 0)
+            return;
+
+        _energyTotals.AdjustPowerGenerationTokens(delta);
+        NotifyTotalsChanged();
+        NotifyDebugStateChanged();
+        AddRecentMessage($"[디버그] 발전토큰 {(delta > 0 ? "+" : "")}{delta} → 현재 {_energyTotals.currentPowerGeneration}개");
+    }
+
     public void ClearTotals()
     {
-        _energyTotals.Clear();
+        _energyTotals.Clear(_initialCarbonTokenCount);
 
         while (_receivedQueue.TryDequeue(out _))
         {
@@ -685,6 +752,23 @@ public class TcpDataAggregator : MonoBehaviour
             Debug.Log($"port.json autoStart 적용: {_autoStart} -> {portJson.autoStart}");
             _autoStart = portJson.autoStart;
         }
+    }
+
+    // gameSettingData.json의 initialCarbonTokenCount를 인스펙터 값 위에 덮어씁니다.
+    private void ApplyGameSettingsFromJson()
+    {
+        JsonManager jsonManager = JsonManager.instance;
+        if (jsonManager == null || jsonManager.gameSettingData == null)
+            return;
+
+        int jsonInitialCarbon = jsonManager.gameSettingData.initialCarbonTokenCount;
+        if (jsonInitialCarbon < 0)
+        {
+            Debug.LogWarning($"gameSettingData.json initialCarbonTokenCount 값이 0 미만입니다: {jsonInitialCarbon}. 인스펙터 값 {_initialCarbonTokenCount}을 그대로 사용합니다.");
+            return;
+        }
+
+        _initialCarbonTokenCount = jsonInitialCarbon;
     }
 
     public int GetConnectedClientCount()

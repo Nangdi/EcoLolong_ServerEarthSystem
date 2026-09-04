@@ -21,6 +21,9 @@ public class TcpDataTextBinder : MonoBehaviour
     [SerializeField] private string _valueOnlyFormat = "{0}개";
     [FormerlySerializedAs("labeledValueFormat")]
     [SerializeField] private string _labeledValueFormat = "{0} : {1}";
+    [Tooltip("좌측 상단 \"현재 탄소 / 현재 발전토큰\" 표시 형식입니다. 누적 수치 텍스트와 달리 단위(개)를 붙여 표시합니다. " +
+             "리플레이 재생용 EarthStateLevelRecorder의 토큰 형식과 동일하게 맞춰 두세요.")]
+    [SerializeField] private string _tokenCountFormat = "{0}개";
 
     [Header("EarthState 표시 형식")]
     [FormerlySerializedAs("levelFormat")]
@@ -322,8 +325,8 @@ public class TcpDataTextBinder : MonoBehaviour
         SetText(_arcticIceText, string.Format(_arcticIceFormat, snapshot.ArcticIcePercent));
         SetText(_seaLevelText, string.Format(_seaLevelFormat, snapshot.SeaLevelRiseMeters * 100)); // 미터 단위를 센티미터로 변환
 
-        UpdateTargetText(_currentCarbonText, "현재탄소", snapshot.CurrentCarbon);
-        UpdateTargetText(_currentPowerGenerationText, "현재발전", snapshot.CurrentPowerGeneration);
+        SetTokenCountText(_currentCarbonText, snapshot.CurrentCarbon);
+        SetTokenCountText(_currentPowerGenerationText, snapshot.CurrentPowerGeneration);
     }
 
     private void OnTotalsChanged(EnergyTotals totals)
@@ -348,6 +351,15 @@ public class TcpDataTextBinder : MonoBehaviour
         }
 
         targetText.text = FormatValue(label, value);
+    }
+
+    // 현재 탄소/발전토큰 개수는 누적 수치와 달리 "N개" 형태로 단위까지 함께 표시합니다.
+    private void SetTokenCountText(TMP_Text targetText, int value)
+    {
+        if (targetText == null)
+            return;
+
+        targetText.text = string.Format(_tokenCountFormat, value);
     }
 
     private string FormatValue(string label, int value)

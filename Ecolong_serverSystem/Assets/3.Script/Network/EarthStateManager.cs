@@ -24,12 +24,16 @@ public class EarthStateManager : MonoBehaviour
     private const float PreIndustrialCarbonPpm = 280f;
     private const float TemperatureLogFactor = 4.28f;
 
+    // 도시친환경도로 가감할 수 있는 친환경도 보정 단계의 최대 폭입니다(±2단계).
+    private const int MaxEcoOffsetSteps = 2;
+
     // 레벨은 항상 1~5의 5단계이므로 경계가 되는 임계값은 4개입니다.
     private const int LevelThresholdCount = MaxLevel - MinLevel;
 
     // 친환경도 판정 기본 임계값입니다. 설정창과 동일하게 1→5단계 순으로 정렬합니다.
     // 인덱스 0~3이 "친환경도 1/2/3/4 단계 경계"에 대응합니다(탄소가 인덱스3 미만이면 5단계).
-    private static readonly int[] DefaultEcoCarbonThresholds = { 80, 55, 35, 15 };
+    // 시작 탄소토큰(기본 30개)이 [1]=40 미만 / [2]=25 이상이므로 게임은 친환경도 3단계에서 시작합니다.
+    private static readonly int[] DefaultEcoCarbonThresholds = { 50, 40, 25, 10 };
 
     // 발전도 판정 기본 임계값입니다. 설정창과 동일하게 1→5단계 순으로 정렬합니다.
     // 인덱스 0~3이 "발전도 2/3/4/5 단계 경계"에 대응합니다(발전이 인덱스0 미만이면 1단계).
@@ -58,15 +62,15 @@ public class EarthStateManager : MonoBehaviour
     [SerializeField] private TcpDataAggregator _aggregator;
 
     [Header("친환경도 보정")]
-    // 도시친환경도(cityEcoScore)로부터 매 RefreshState마다 자동 계산되는 보정값입니다(-1/0/+1).
-    [Range(-1, 1)]
+    // 도시친환경도(cityEcoScore)로부터 매 RefreshState마다 자동 계산되는 보정값입니다(-2 ~ +2).
+    [Range(-MaxEcoOffsetSteps, MaxEcoOffsetSteps)]
     [FormerlySerializedAs("softwareEcoOffset")]
     [SerializeField] private int _softwareEcoOffset;
 
-    [Tooltip("cityEcoScore가 이 값 이상이면 친환경도 +1 보정.")]
-    [SerializeField] private int _cityEcoOffsetUpperThreshold = 20;
-    [Tooltip("cityEcoScore가 이 값 이하이면 친환경도 -1 보정.")]
-    [SerializeField] private int _cityEcoOffsetLowerThreshold = -20;
+    [Tooltip("cityEcoScore의 절대값이 이 값 이상이면 친환경도를 1단계 올리거나 내립니다. (기본 ±10)")]
+    [SerializeField] private int _cityEcoOffsetStep1Threshold = 10;
+    [Tooltip("cityEcoScore의 절대값이 이 값 이상이면 친환경도를 2단계 올리거나 내립니다. (기본 ±20)")]
+    [SerializeField] private int _cityEcoOffsetStep2Threshold = 20;
 
     [Header("게임 연동")]
     [FormerlySerializedAs("resetAggregatorOnGameStart")]
@@ -76,7 +80,7 @@ public class EarthStateManager : MonoBehaviour
 
     [Header("레벨 판정 기준 (런타임 변경 가능)")]
     [Tooltip("친환경도 임계값(1→5단계 순 4개). [0]=1단계 경계 ... [3]=4단계 경계.")]
-    [SerializeField] private int[] _ecoCarbonThresholds = { 80, 55, 35, 15 };
+    [SerializeField] private int[] _ecoCarbonThresholds = { 50, 40, 25, 10 };
     [Tooltip("발전도 임계값(1→5단계 순 4개). [0]=2단계 경계 ... [3]=5단계 경계.")]
     [SerializeField] private int[] _developmentThresholds = { 160, 220, 280, 340 };
 
@@ -122,6 +126,7 @@ public class EarthStateManager : MonoBehaviour
 
         _ecoCarbonThresholds = NormalizeThresholds(_ecoCarbonThresholds, DefaultEcoCarbonThresholds);
         _developmentThresholds = NormalizeThresholds(_developmentThresholds, DefaultDevelopmentThresholds);
+        NormalizeEcoOffsetThresholds();
 
         if (_aggregator == null)
             _aggregator = TcpDataAggregator.Instance;
@@ -141,6 +146,12 @@ public class EarthStateManager : MonoBehaviour
         // JsonManager가 디스크에서 불러온 임계값을 시작 시점에 반영합니다.
         // (Awake 순서에 의존하지 않도록 Start에서 적용)
         ApplyFromSettings();
+
+        // 대기화면(Ready)은 "게임을 막 시작했을 때"와 같은 화면이어야 합니다.
+        // 집계기 시작값(기본 지급 탄소토큰)으로 상태를 한 번 확정하고 UI 전체에 알려,
+        // 지구 이미지/상태 텍스트/레벨이 초기 기본값(자연낙원)이 아니라 시작값 기준으로 대기하게 합니다.
+        if (IsWaitingInReadyState())
+            ResetState();
     }
 
     private void OnEnable()
@@ -158,7 +169,8 @@ public class EarthStateManager : MonoBehaviour
 
     private void OnValidate()
     {
-        _softwareEcoOffset = Mathf.Clamp(_softwareEcoOffset, -1, 1);
+        _softwareEcoOffset = Mathf.Clamp(_softwareEcoOffset, -MaxEcoOffsetSteps, MaxEcoOffsetSteps);
+        NormalizeEcoOffsetThresholds();
         _carbonPpmSpeedMultiplier = Mathf.Max(0f, _carbonPpmSpeedMultiplier);
         _balanceReferenceSeconds = Mathf.Max(1f, _balanceReferenceSeconds);
         _carbonTokenRate = Mathf.Max(0f, _carbonTokenRate);
@@ -235,6 +247,8 @@ public class EarthStateManager : MonoBehaviour
     public void ResetState()
     {
         _currentState.ResetToDefaults();
+        // 집계기의 시작값(예: 기본 지급 탄소토큰)을 곧바로 반영해 초기화 직후 표시가 실제 시작 상태와 어긋나지 않게 합니다.
+        RefreshState();
         StateChanged?.Invoke(_currentState);
     }
 
@@ -270,7 +284,7 @@ public class EarthStateManager : MonoBehaviour
 
     public void SetSoftwareEcoOffset(int offset)
     {
-        int clampedOffset = Mathf.Clamp(offset, -1, 1);
+        int clampedOffset = Mathf.Clamp(offset, -MaxEcoOffsetSteps, MaxEcoOffsetSteps);
         if (_softwareEcoOffset == clampedOffset)
             return;
 
@@ -293,7 +307,8 @@ public class EarthStateManager : MonoBehaviour
         int carbonCount = totals != null ? totals.totalCarbon : 0;
         int powerGenerationCount = totals != null ? totals.powerGeneration : 0;
         int electricCount = totals != null ? totals.electricCount : 0;
-        int currentCarbon = totals != null ? totals.totalCarbon - totals.captureCarbon : 0;
+        // 누적 생산량(carbonCount)에는 시작 지급분이 빠져 있고, 현재 보유량에는 포함됩니다.
+        int currentCarbon = totals != null ? totals.GetCurrentCarbon() : 0;
         int currentPowerGeneration = totals != null ? totals.currentPowerGeneration : 0;
         int cityEcoScore = totals != null ? totals.cityEcoScore : 0;
 
@@ -303,7 +318,9 @@ public class EarthStateManager : MonoBehaviour
         int ecoLevel = CalculateEcoLevel(currentCarbon, _softwareEcoOffset);
         int developmentLevel = CalculateDevelopmentLevel(powerGenerationCount);
         string stateName = GetStateName(ecoLevel, developmentLevel);
-        float carbonRatePerSecond = CalculateCarbonPpmChangePerSecond(ecoLevel, developmentLevel, carbonCount);
+        // 탄소농도 상승분은 "지금 보드에 올라와 있는 탄소토큰" 기준입니다.
+        // 누적 생산량이 아니라 현재 보유량(시작 지급분 포함, 포집분 차감)을 넘깁니다.
+        float carbonRatePerSecond = CalculateCarbonPpmChangePerSecond(ecoLevel, developmentLevel, currentCarbon);
 
         float nextCarbonPpm = _currentState.CarbonPpm;
         if (Application.isPlaying)
@@ -356,34 +373,55 @@ public class EarthStateManager : MonoBehaviour
         else
             baseLevel = 1;
 
+        // 탄소토큰으로 정해진 기본 단계에 도시친환경도 보정(-2~+2)을 더한 뒤 항상 1~5로 클램프합니다.
         return Mathf.Clamp(baseLevel + ecoOffset, MinLevel, MaxLevel);
     }
 
-    // 도시친환경도(cityEcoScore)를 상/하한 임계값과 비교해 친환경도 보정값을 구합니다.
-    // 상한 이상이면 +1, 하한 이하이면 -1, 그 사이면 0입니다.
+    // 도시친환경도(cityEcoScore)의 크기를 두 임계값과 비교해 친환경도 보정 단계를 구합니다.
+    // 기본값 기준으로 ±10 이상이면 ±1단계, ±20 이상이면 ±2단계이며 부호는 cityEcoScore를 따릅니다.
     public int CalculateEcoOffset(int cityEcoScore)
     {
-        if (cityEcoScore >= _cityEcoOffsetUpperThreshold)
-            return 1;
-        if (cityEcoScore <= _cityEcoOffsetLowerThreshold)
-            return -1;
-        return 0;
+        int magnitude = Mathf.Abs(cityEcoScore);
+
+        int steps;
+        if (magnitude >= _cityEcoOffsetStep2Threshold)
+            steps = 2;
+        else if (magnitude >= _cityEcoOffsetStep1Threshold)
+            steps = 1;
+        else
+            return 0;
+
+        steps = Mathf.Clamp(steps, 0, MaxEcoOffsetSteps);
+        return cityEcoScore >= 0 ? steps : -steps;
+    }
+
+    // 1단계 기준이 2단계 기준보다 크면 2단계 판정이 영영 나오지 않으므로,
+    // 두 임계값은 항상 1 이상이면서 1단계 ≤ 2단계가 되도록 보정합니다.
+    private void NormalizeEcoOffsetThresholds()
+    {
+        _cityEcoOffsetStep1Threshold = Mathf.Max(1, _cityEcoOffsetStep1Threshold);
+        _cityEcoOffsetStep2Threshold = Mathf.Max(_cityEcoOffsetStep1Threshold, _cityEcoOffsetStep2Threshold);
     }
 
     public int CalculateDevelopmentLevel(int powerGenerationCount)
     {
         // 임계값 배열은 설정창과 동일하게 1→5단계 순으로 저장됩니다([0]=2단계 경계 ... [3]=5단계 경계).
         // 판정은 레벨 5(최고)부터 내려가므로 인덱스를 [3]→[0] 순으로 읽습니다.
+        int baseLevel;
+
         if (powerGenerationCount >= _developmentThresholds[3])
-            return 5;
+            baseLevel = 5;
         else if (powerGenerationCount >= _developmentThresholds[2])
-            return 4;
+            baseLevel = 4;
         else if (powerGenerationCount >= _developmentThresholds[1])
-            return 3;
+            baseLevel = 3;
         else if (powerGenerationCount >= _developmentThresholds[0])
-            return 2;
+            baseLevel = 2;
         else
-            return 1;
+            baseLevel = 1;
+
+        // 발전토큰이 아무리 쌓이거나 임계값이 어떻게 설정돼도 표시 단계는 항상 1~5를 벗어나지 않습니다.
+        return Mathf.Clamp(baseLevel, MinLevel, MaxLevel);
     }
 
     // 현재 적용 중인 친환경도/발전도 임계값을 읽기 전용으로 노출합니다.
@@ -401,8 +439,11 @@ public class EarthStateManager : MonoBehaviour
         GameSettingData data = json.gameSettingData;
         _ecoCarbonThresholds = NormalizeThresholds(data.ecoCarbonThresholds, DefaultEcoCarbonThresholds);
         _developmentThresholds = NormalizeThresholds(data.developmentThresholds, DefaultDevelopmentThresholds);
-        _cityEcoOffsetUpperThreshold = data.cityEcoOffsetUpperThreshold;
-        _cityEcoOffsetLowerThreshold = data.cityEcoOffsetLowerThreshold;
+        _cityEcoOffsetStep1Threshold = data.cityEcoOffsetStep1Threshold;
+        _cityEcoOffsetStep2Threshold = data.cityEcoOffsetStep2Threshold;
+        NormalizeEcoOffsetThresholds();
+        data.cityEcoOffsetStep1Threshold = _cityEcoOffsetStep1Threshold;
+        data.cityEcoOffsetStep2Threshold = _cityEcoOffsetStep2Threshold;
         _carbonPpmSpeedMultiplier = Mathf.Max(0f, data.carbonPpmSpeedMultiplier);
 
         // 디스크 값에 맞춰 GameSettingData도 보정된 값으로 되돌려, UI/저장 값이 항상 유효 범위를 유지하게 합니다.
@@ -579,10 +620,18 @@ public class EarthStateManager : MonoBehaviour
 
     private void OnTotalsChanged(EnergyTotals totals)
     {
-        if (!_isStateTrackingActive && Application.isPlaying)
+        // 게임이 끝난 뒤(TimeOut/Ended)에는 늦게 들어온 데이터가 결과 화면을 덮지 않도록 무시합니다.
+        // 다만 Ready(대기화면)에서는 집계기 시작값이 바로 화면에 반영돼야 하므로 갱신을 허용합니다.
+        if (Application.isPlaying && !_isStateTrackingActive && !IsWaitingInReadyState())
             return;
 
         RefreshState();
+    }
+
+    // 게임 시작 전 대기 상태인지 판정합니다. GameManager가 아직 없으면 대기 상태로 봅니다.
+    private static bool IsWaitingInReadyState()
+    {
+        return GameManager.Instance == null || GameManager.Instance.CurrentGameState == GameState.Ready;
     }
 
     private void OnGameStart()

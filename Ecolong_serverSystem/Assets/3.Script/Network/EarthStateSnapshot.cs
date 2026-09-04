@@ -4,7 +4,7 @@ using UnityEngine;
 [Serializable]
 public class EarthStateSnapshot
 {
-    // 현재까지 TCP로 누적된 탄소 count입니다.
+    // 현재까지 TCP로 누적된 탄소 count(누적 생산량)입니다. 시작 지급 탄소토큰은 포함하지 않습니다.
     public int CarbonCount;
 
     // 현재까지 TCP로 누적된 발전 count입니다.
@@ -13,7 +13,7 @@ public class EarthStateSnapshot
     // 현재까지 TCP로 누적된 전기 count입니다. 5종 발전(화력/수력/태양광/풍력/수소)과 ELECTRIC 입력의 합계입니다.
     public int ElectricCount;
 
-    // 화면에 표시되는 "현재 탄소" 값입니다. CARBON 입력으로 늘고 CARBON_CAPTURE 만큼 차감됩니다.
+    // 화면에 표시되는 "현재 탄소" 값입니다. 시작 지급분에서 출발해 CARBON 입력으로 늘고 CARBON_CAPTURE 만큼 차감됩니다.
     public int CurrentCarbon;
 
     // 화면에 표시되는 "현재 발전토큰" 값입니다. POWER_GENERATION 입력으로 누적됩니다.

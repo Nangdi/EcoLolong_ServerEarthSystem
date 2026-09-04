@@ -82,22 +82,28 @@ public class GameSettingData
     // ----- 지구상태 레벨 판정 기준 (ESC 설정창에서 변경/저장, 1→5단계 순으로 정렬) -----
     // 친환경도: [0]=1단계 경계 ... [3]=4단계 경계. 탄소가 [3] 미만이면 5단계, [0] 이상이면 1단계.
     [SettingField("친환경도 기준(탄소)", SettingGroup.Developer, "콤마로 구분한 4개 경계값 (1→4단계 순)")]
-    public int[] ecoCarbonThresholds = { 80, 55, 35, 15 };
+    public int[] ecoCarbonThresholds = { 50, 40, 25, 10 };
     // 발전도: [0]=2단계 경계 ... [3]=5단계 경계. 발전이 [3] 이상이면 5단계, [0] 미만이면 1단계.
     [SettingField("발전도 기준", SettingGroup.Developer, "콤마로 구분한 4개 경계값 (2→5단계 순)")]
     public int[] developmentThresholds = { 160, 220, 280, 340 };
 
     // ----- 도시친환경도(cityEcoScore) 기반 친환경도 보정 기준 -----
-    // cityEcoScore가 [상한] 이상이면 친환경도 +1, [하한] 이하이면 -1, 그 사이면 0.
-    [SettingField("도시친환경 보정 상한", SettingGroup.Developer, "이 값 이상이면 친환경도 +1")]
-    public int cityEcoOffsetUpperThreshold = 20;
-    [SettingField("도시친환경 보정 하한", SettingGroup.Developer, "이 값 이하이면 친환경도 -1")]
-    public int cityEcoOffsetLowerThreshold = -20;
+    // cityEcoScore의 절대값이 [1단계 기준] 이상이면 ±1단계, [2단계 기준] 이상이면 ±2단계 보정합니다.
+    // 부호는 cityEcoScore를 따르므로 +20이면 +2단계, -10이면 -1단계입니다.
+    [SettingField("도시친환경 1단계 기준", SettingGroup.Developer, "cityEcoScore 절대값이 이 값 이상이면 친환경도 ±1단계")]
+    public int cityEcoOffsetStep1Threshold = 10;
+    [SettingField("도시친환경 2단계 기준", SettingGroup.Developer, "cityEcoScore 절대값이 이 값 이상이면 친환경도 ±2단계")]
+    public int cityEcoOffsetStep2Threshold = 20;
 
     // ----- 탄소농도(ppm) 변화 속도 가중치 -----
     // 1=기본(1배율), 1보다 작으면 더 천천히, 크면 더 빠르게 오르거나 내립니다. (0이면 변화 정지)
     [SettingField("탄소농도 변화 배율", SettingGroup.Developer, "1 = 기본. 작을수록 천천히, 0이면 변화 정지")]
     public float carbonPpmSpeedMultiplier = 1f;
+
+    // ----- 게임 시작 시 기본으로 들고 시작하는 탄소토큰 개수 -----
+    // 게임 시작/초기화 시 "현재 탄소"가 이 값에서 시작합니다. 누적 생산량에는 포함되지 않습니다.
+    [SettingField("시작 탄소토큰 개수", SettingGroup.Developer, "게임 시작 시 현재 탄소가 이 개수부터 시작합니다 (누적 생산량 제외)")]
+    public int initialCarbonTokenCount = 30;
 }
 
 public class GameDynamicData

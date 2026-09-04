@@ -34,6 +34,8 @@ public class EarthStateLevelRecorder : MonoBehaviour
     [SerializeField] private TMP_Text _ecoLevelText;
     [SerializeField] private TMP_Text _currentCarbonText;
     [SerializeField] private TMP_Text _currentPowerGenerationText;
+    [Tooltip("리플레이 중 기록된 친환경도/발전도로 다시 계산해 표시할 \"현재 지구상태\" 텍스트입니다.")]
+    [SerializeField] private TMP_Text _stateNameText;
     [FormerlySerializedAs("levelFormat")]
     [SerializeField] private string _levelFormat = "LEVEL {0}";
     [SerializeField] private string _tokenFormat = "{0}개";
@@ -131,6 +133,7 @@ public class EarthStateLevelRecorder : MonoBehaviour
         SetLevelText(_ecoLevelText, sample.EcoLevel);
         SetTokenText(_currentCarbonText, sample.CurrentCarbon);
         SetTokenText(_currentPowerGenerationText, sample.CurrentPowerGeneration);
+        SetStateNameText(sample.EcoLevel, sample.DevelopmentLevel);
         _lastReplayedIndex = _recordSamples.Count - 1;
     }
 
@@ -158,6 +161,7 @@ public class EarthStateLevelRecorder : MonoBehaviour
         SetLevelText(_ecoLevelText, sample.EcoLevel);
         SetTokenText(_currentCarbonText, sample.CurrentCarbon);
         SetTokenText(_currentPowerGenerationText, sample.CurrentPowerGeneration);
+        SetStateNameText(sample.EcoLevel, sample.DevelopmentLevel);
         _lastReplayedIndex = idx;
     }
 
@@ -173,6 +177,15 @@ public class EarthStateLevelRecorder : MonoBehaviour
         if (target == null)
             return;
         target.text = string.Format(_tokenFormat, value);
+    }
+
+    // 리플레이 중에는 EarthStateManager가 멈춰 StateChanged가 오지 않아 상태 이름 텍스트가 그대로 남습니다.
+    // 기록해 둔 친환경도/발전도로 상태표를 다시 조회해 "현재 지구상태" 텍스트도 같이 갱신합니다.
+    private void SetStateNameText(int ecoLevel, int developmentLevel)
+    {
+        if (_stateNameText == null)
+            return;
+        _stateNameText.text = EarthStateManager.GetStateName(ecoLevel, developmentLevel);
     }
 
     private void TrySubscribe()
